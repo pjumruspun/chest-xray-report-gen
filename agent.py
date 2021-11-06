@@ -7,7 +7,8 @@ from tensorflow.keras.optimizers import Adam
 
 
 class Agent(rl.policy.BasePolicy):
-    def __init__(self, features_dim, batch_size=1, lr=3e-4, discount_factor=0.99, n_actions=2, fc1_dims=1024, fc2_dims=512):
+    def __init__(self, n_step, features_dim, batch_size=1, lr=3e-4, discount_factor=0.99, n_actions=2, fc1_dims=1024, fc2_dims=512):
+        self.n_step = n_step
         self.lr = lr
         self.features_dim = features_dim
         self.batch_size = batch_size
@@ -49,6 +50,17 @@ class Agent(rl.policy.BasePolicy):
         self.actor_critic.load_weights(self.actor_critic.checkpoint_file)
 
     def optimize_step(self, data):
+        if self.n_step == 1:
+            self.__optimize_step(data)
+        elif self.n_step > 1:
+            self.__optimize_n_step(data)
+        else:
+            raise ValueError(f"Expected self.n_step to be > 1, got {self.n_step} instead")
+
+    def __optimize_n_step(self, data):
+        raise NotImplementedError()
+        
+    def __optimize_step(self, data):
         states, rewards, next_states, dones = data['s'], data['r'], data['ss'], data['done']
 
         # states and next_states should have shape of [batch_size, features]
