@@ -1,0 +1,5 @@
+# Chula rl library
+chula_rl/
+
+# VSCode
+__pycache__/
