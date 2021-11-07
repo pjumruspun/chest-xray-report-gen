@@ -3,3 +3,13 @@ chula_rl/
 
 # VSCode
 __pycache__/
+.vscode/
+
+# Text generation dataset
+text_generation/data/
+
+# Text generation weights
+text_generation/weights
+
+# Cached image features
+text_generation/image_features.pickle
