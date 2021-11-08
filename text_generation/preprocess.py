@@ -1,28 +1,33 @@
-import os
 import pickle
-import pandas as pd
+import os
+
 import numpy as np
+import pandas as pd
 import tensorflow as tf
-from chexnet import ChexNet
-from tqdm import tqdm
-from skimage.transform import resize
 from skimage.io import imread
+from skimage.transform import resize
 from tensorflow.keras.applications.densenet import preprocess_input
-from preprocess_text import text_preprocessing, remove_empty
+from tqdm import tqdm
+
+from chexnet import ChexNet
+from preprocess_text import remove_empty, text_preprocessing
+
+def get_path(f, path):
+    return os.path.join(os.path.dirname(f), path).replace('\\', '/')
 
 configs = {
-    'seed_value': 0,
-    'image_path': os.path.join(os.path.dirname(__file__), 'data/images/images_normalized/'),
-    'report_csv': os.path.join(os.path.dirname(__file__), 'data/indiana_reports.csv'),
-    'projection_csv': os.path.join(os.path.dirname(__file__), 'data/indiana_projections.csv'),
-    'pickle_file_path': os.path.join(os.path.dirname(__file__), 'image_features.pickle'),
+    'image_path': get_path(__file__, 'data/images/images_normalized/'),
+    'report_csv': get_path(__file__, 'data/indiana_reports.csv'),
+    'projection_csv': get_path(__file__, 'data/indiana_projections.csv'),
+    'images_npy_file_path': get_path(__file__, 'images.npy'),
+    'csv_file_path': get_path(__file__, 'all.csv'),
+    'pickle_file_path': get_path(__file__, 'image_features.pickle'),
     'input_shape': (256, 256, 3),
     'START_TOK': '<startseq>',
     'STOP_TOK': '<endseq>',
 }
 
-
-def add_start_stop(text):
+def add_start_stop(text) -> str:
     return configs['START_TOK'] + ' ' + text.str.strip() + ' ' + configs['STOP_TOK']
 
 
@@ -50,11 +55,19 @@ def preprocess_images(df) -> dict:
     """
     Preprocess images in df['img_path']
     """
-
     img_paths = df['img_path'].values
 
-    print(f"Loading {len(img_paths)} images...")
-    images = load_images(img_paths)
+    if os.path.exists(configs['images_npy_file_path']):
+        print(f"Using cached images")
+        images = np.load(configs['images_npy_file_path'])
+
+    else:
+        print(f"Loading {len(img_paths)} new images...")
+        images = load_images(img_paths)
+        
+        print("Saving images...")
+        np.save(configs['images_npy_file_path'], images)
+
     print(f"{images.shape=}")
 
     print(f"Generating image features..")
@@ -64,12 +77,22 @@ def preprocess_images(df) -> dict:
     image_mappings = create_image_mappings(img_paths, image_features)
     return image_mappings
 
-def save_image_mappings(image_mappings):
+
+def save_csv(df) -> None:
+    df.to_csv(configs['csv_file_path'], index=False)
+
+
+def load_csv() -> pd.DataFrame:
+    return pd.read_csv(configs['csv_file_path'])
+
+
+def save_image_mappings(image_mappings) -> None:
     with open(configs['pickle_file_path'], 'wb') as f:
         print(f"Saving image mappings... ({len(image_mappings)} total images)")
         pickle.dump(image_mappings, f)
 
-def load_image_mappings():
+
+def load_image_mappings() -> dict:
     """
     Function for loading image mappings, for other python file to call
     """
@@ -123,13 +146,22 @@ def generate_image_features(images, batch_size=32) -> np.array:
     Generate image features from images using pretrained ChexNet
     """
 
+    print("Creating ChexNet model...")
     chexnet = ChexNet(input_shape=configs['input_shape'], pooling=None)
     image_features = []
 
+    print("Creating image generator...")
     # batch
-    image_generator = tf.data.Dataset.from_tensor_slices(images)
-    image_generator = image_generator.batch(batch_size)
+    # image_generator = tf.data.Dataset.from_tensor_slices(images) # Why explode here?
+    # image_generator = image_generator.batch(batch_size)
 
+    image_generator = []
+    for i in range(0, images.shape[0], batch_size):
+        start = i
+        stop = min(images.shape[0], i + 32)
+        image_generator.append(images[start:stop])
+
+    print("Start generating features...")
     for batch in tqdm(image_generator):
         features_batch = chexnet(batch)
         image_features.extend(features_batch)
@@ -144,15 +176,35 @@ def create_image_mappings(img_paths, image_features) -> dict:
 
     return dict(zip(img_paths, image_features))
 
+def limitgpu(maxmem):
+	gpus = tf.config.list_physical_devices('GPU')
+	if gpus:
+		# Restrict TensorFlow to only allocate a fraction of GPU memory
+		try:
+			for gpu in gpus:
+				tf.config.experimental.set_virtual_device_configuration(gpu,
+						[tf.config.experimental.VirtualDeviceConfiguration(memory_limit=maxmem)])
+		except RuntimeError as e:
+			# Virtual devices must be set before GPUs have been initialized
+			print(e)
 
 if __name__ == "__main__":
     df = load_dataframe()
 
     # preprocess reports
     df = preprocess_text(df)
+    print(f"Total report rows: {df.shape[0]}")
+
+    # save to csv file
+    save_csv(df)
+
+    # Limit GPU memory, GTX1070 = 6GB
+    # We will do 4GB here
+    # limitgpu(1024*4)
+    # os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
     # preprocess images
-    image_mappings = preprocess_images(df.head(300))
+    image_mappings = preprocess_images(df)
 
     # save to pickle file
     save_image_mappings(image_mappings)

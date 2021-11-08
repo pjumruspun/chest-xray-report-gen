@@ -5,11 +5,10 @@ chula_rl/
 __pycache__/
 .vscode/
 
-# Text generation dataset
+# Text generation stuff
 text_generation/data/
-
-# Text generation weights
 text_generation/weights
+text_generation/images.npy
 
 # Cached image features
-text_generation/image_features.pickle
+text_generation/image_features.pickle 
