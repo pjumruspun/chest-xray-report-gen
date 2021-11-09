@@ -7,69 +7,21 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
-from dataset import balance_shuffle, create_dataset, train_val_test_split
+from dataset import get_train_materials
 from lstm import CNN_Encoder, RNN_Decoder, loss_function
 from preprocess import configs
 from preprocess import configs as preprocess_configs
-from preprocess import load_csv, load_image_mappings
-from utils import create_embedding_matrix, get_max_report_len
-
-MAX_LEN = get_max_report_len()
 
 configs = {
-    'train_ratio': 0.75,
-    'val_ratio': 0.10,
-    'test_ratio': 0.15,
     'learning_rate': 1e-3,
     "embedding_dim": 200,
     "decoder_units": 80,
     'epochs': 40,
-    'batch_size': 16,
+    'batch_size': 1,
 }
 
 image_mappings, tokenizer, encoder, decoder, optimizer = None, None, None, None, None
 START_TOK = preprocess_configs['START_TOK']
-
-
-def files_exist():
-    """
-    Check if image mappings and report df exists
-    """
-    pickle_exist = os.path.exists(preprocess_configs['pickle_file_path'])
-    csv_exist = os.path.exists(preprocess_configs['csv_file_path'])
-
-    if not pickle_exist:
-        print(
-            f"Pickle file not found, expected to be at: {preprocess_configs['pickle_file_path']}")
-
-    if not csv_exist:
-        print(
-            f"Report csv file not found, expected to be at: {preprocess_configs['csv_file_path']}")
-
-    return pickle_exist and csv_exist
-
-
-def texts_to_sequences(texts) -> np.array:
-    seqs = []
-    for sentence in texts:
-        sent = []
-        for word in sentence.split():
-            decoded = tokenizer.word_index.get(word.decode('utf-8'))
-            if decoded == None:
-                decoded = 0
-            sent.append(decoded)
-        seqs.append(np.asarray(sent))
-    return np.asarray(seqs)
-
-
-def load_features(id_, report):
-    global image_mappings
-    train_seq = texts_to_sequences([report])
-    train_seq = pad_sequences(
-        train_seq, MAX_LEN, padding='post', dtype=np.int32)
-    img_feature = image_mappings[id_.decode('utf-8')]
-    return img_feature, train_seq[0]
-
 
 @tf.function
 def train_step(img_tensor, target, train=True):
@@ -154,47 +106,9 @@ def train(train_generator, val_generator, train_size, val_size):
 
 
 def main():
-    global image_mappings, tokenizer, encoder, decoder, optimizer
+    global tokenizer, encoder, decoder, optimizer
 
-    # Check if necessary dataset file exists
-    if files_exist():
-
-        image_mappings = load_image_mappings()
-        df = load_csv()
-    else:
-        raise Exception(
-            "Please run preprocess.py to create pickle and csv file first.")
-
-    # Balance shuffling
-    balanced_df = balance_shuffle(df)
-
-    X = balanced_df['img_path'].values
-    Y = balanced_df['report'].values
-
-    x_train, x_val, x_test, y_train, y_val, y_test = train_val_test_split(
-        X, Y, configs['train_ratio'], configs['val_ratio'], configs['test_ratio'])
-
-    print("Data shapes:")
-    print(x_train.shape)
-    print(x_val.shape)
-    print(x_test.shape)
-    print(y_train.shape)
-    print(y_val.shape)
-    print(y_test.shape)
-
-    # Create embeddings
-    print("Creating embedding matrix...")
-    tokenizer, embedding_matrix, vocab_size, w2v_size = create_embedding_matrix(
-        Y)
-
-    print("Building datasets...")
-    # Build dataset
-    train_generator = create_dataset(
-        x_train, y_train, load_features, batch_size=configs['batch_size'])
-    val_generator = create_dataset(
-        x_val, y_val, load_features, batch_size=configs['batch_size'])
-    test_generator = create_dataset(
-        x_test, y_test, load_features, batch_size=configs['batch_size'])
+    train_generator, val_generator, _, tokenizer, embedding_matrix, vocab_size, train_size, val_size, _ = get_train_materials()
 
     # Create models
     print("Creating models...")
@@ -208,7 +122,7 @@ def main():
     # Train
     print("Start training with configs:")
     print(configs)
-    train(train_generator, val_generator, len(x_train), len(x_val))
+    train(train_generator, val_generator, train_size, val_size)
 
 
 if __name__ == '__main__':

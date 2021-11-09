@@ -9,6 +9,14 @@ __pycache__/
 text_generation/data/
 text_generation/weights
 text_generation/images.npy
+text_generation/train_loss
 
 # Cached image features
 text_generation/image_features.pickle 
+
+# Plotted graph
+text_generation/loss_plot.png
+text_generation/checkpoint/
+
+#
+text_generation/VisualCheXbert/
