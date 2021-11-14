@@ -6,6 +6,7 @@ from configs import configs
 
 SEED = 0
 
+
 def create_embedding_matrix(tokenizer) -> np.array:
     """
     Create embedding matrix with size of (vocab_size, w2v_size)

@@ -1,11 +1,13 @@
 import re
 
+
 def lowercase(text):
     """Converts to lowercase"""
     new_text = []
     for line in text:
         new_text.append(line.lower())
     return new_text
+
 
 def rem_measurement(text):
     """Removes measurements such as 2 cm, 1-6 mm, 5.6 cm"""
@@ -15,6 +17,7 @@ def rem_measurement(text):
         new_text.append(temp)
     return new_text
 
+
 def rem_dcolon(text):
     """Removes d: from the text"""
     new_text = []
@@ -23,10 +26,11 @@ def rem_dcolon(text):
         new_text.append(temp)
     return new_text
 
+
 def rem_irrelevant_strings(text):
     """Removes irrevelant substrings from text"""
     new_text = []
-    irrelevant = ['as compared to the previous radiograph', 
+    irrelevant = ['as compared to the previous radiograph',
                   'no previous images']
     for line in text:
         temp = line
@@ -36,6 +40,7 @@ def rem_irrelevant_strings(text):
 
     return new_text
 
+
 def rem_number_listing(text):
     """Removes number listing like 1. 2. 3."""
     new_text = []
@@ -44,18 +49,20 @@ def rem_number_listing(text):
         new_text.append(temp)
     return new_text
 
+
 def rem_comparison(text):
     """Removes comparison related string"""
-    comparison_regex = ['^(as)?\s?compared to(.*?)[\.\,]', 
+    comparison_regex = ['^(as)?\s?compared to(.*?)[\.\,]',
                         '^comparison is made(.*?)[\.\,]',
                         '^(in)?\s?comparison with(.*?)\,']
     new_text = []
     for line in text:
         temp = line
         for cmp in comparison_regex:
-          temp = re.sub(cmp, '', temp)
+            temp = re.sub(cmp, '', temp)
         new_text.append(temp)
     return new_text
+
 
 def decontractions(text):
     """Performs decontractions in the doc"""
@@ -80,6 +87,7 @@ def decontractions(text):
 
     return new_text
 
+
 def rem_time(text):
     """Removes time"""
     new_text = []
@@ -89,20 +97,22 @@ def rem_time(text):
         temp = temp.replace('a.m.', '')
         temp = temp.replace('pm', '')
         temp = temp.replace('p.m.', '')
-        temp = temp.replace('m.', '') # Leftover from rem_comparison
+        temp = temp.replace('m.', '')  # Leftover from rem_comparison
         new_text.append(temp)
     return new_text
 
+
 def rem_punctuations(text):
     """Removes punctuations"""
-    punctuations = """=!()-[]{};:'"\,<>/?@#$%^&*~_+`|""" # full stop is not removed
+    punctuations = """=!()-[]{};:'"\,<>/?@#$%^&*~_+`|"""  # full stop is not removed
     new_text = []
     for line in text:
         for char in line:
-            if char in punctuations: 
+            if char in punctuations:
                 line = line.replace(char, "")
         new_text.append(' '.join(e for e in line.split()))
     return new_text
+
 
 def multiple_fullstops(text):
     """ Removes multiple full stops from the text"""
@@ -111,11 +121,13 @@ def multiple_fullstops(text):
         new_text.append(re.sub(r'\.\.+', '.', line))
     return new_text
 
+
 def fullstops(text):
     new_text = []
     for line in text:
         new_text.append(re.sub('\.', ' .', line))
     return new_text
+
 
 def multiple_spaces(text):
     # new_text = []
@@ -123,6 +135,7 @@ def multiple_spaces(text):
     #     new_text.append(' '.join(e for e in line.split()))
     new_text = [re.sub(' {2,}', ' ', x).strip() for x in text]
     return new_text
+
 
 def separting_startg_words(text):
     new_text = []
@@ -133,25 +146,27 @@ def separting_startg_words(text):
             if i.startswith('.') == False:
                 temp.append(i)
             else:
-                w = i.replace('.','. ')
+                w = i.replace('.', '. ')
                 temp.append(w)
         new_text.append(' '.join(e for e in temp))
     return new_text
 
+
 def rem_apostrophes(text):
     new_text = []
     for line in text:
-        new_text.append(re.sub("'",'',line))
+        new_text.append(re.sub("'", '', line))
     return new_text
+
 
 def rem_beginning_fullstop(text):
     new_text = []
     for line in text:
-        new_text.append(re.sub('^\.','',line))
+        new_text.append(re.sub('^\.', '', line))
     return new_text
 
-def text_preprocessing(text):
 
+def text_preprocessing(text):
     """
     Combines all the preprocess functions
     """
@@ -174,8 +189,8 @@ def text_preprocessing(text):
     new_text = rem_beginning_fullstop(new_text)
     return [text.strip() for text in new_text]
 
-def remove_empty(inp):
 
+def remove_empty(inp):
     """
     There are some missing reports in the dataset
     So we remove it here
@@ -184,6 +199,5 @@ def remove_empty(inp):
     df = inp.copy()
     length = df['report'].str.len()
     res = df[length > 1].reset_index(drop=True)
-    
-    return res
 
+    return res

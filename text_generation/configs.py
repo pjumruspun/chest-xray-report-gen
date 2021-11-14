@@ -1,7 +1,9 @@
 import os
 
+
 def get_path(f, path):
     return os.path.join(os.path.dirname(f), path).replace('\\', '/')
+
 
 configs = {
     'train_ratio': 0.75,

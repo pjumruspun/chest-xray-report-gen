@@ -11,16 +11,9 @@ from dataset import get_train_materials
 from lstm import CNN_Encoder, RNN_Decoder, loss_function
 from configs import configs
 
-# configs = {
-#     'learning_rate': 1e-3,
-#     "embedding_dim": 200,
-#     "decoder_units": 80,
-#     'epochs': 25,
-#     'batch_size': 16,
-# }
-
 image_mappings, tokenizer, encoder, decoder, optimizer = None, None, None, None, None
 START_TOK = configs['START_TOK']
+
 
 @tf.function
 def train_step(img_tensor, target, train=True):
@@ -100,6 +93,7 @@ def train(train_generator, val_generator, train_size, val_size):
     plt.legend()
     plt.savefig('loss_plot.png')
     plt.show()
+
 
 def main():
     global tokenizer, encoder, decoder, optimizer

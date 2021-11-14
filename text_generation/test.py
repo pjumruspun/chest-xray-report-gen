@@ -1,5 +1,4 @@
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from numpy.core.defchararray import decode
+from sklearn.metrics import recall_score, precision_score, f1_score
 import torch
 import torch.nn as nn
 import pickle
@@ -14,7 +13,6 @@ import VisualCheXbert.visualchexbert.utils as utils
 
 import VisualCheXbert.visualchexbert.bert_tokenizer as bert_tokenizer
 from VisualCheXbert.visualchexbert.models.bert_labeler import bert_labeler
-from VisualCheXbert.visualchexbert.bert_tokenizer import tokenize
 from transformers import BertTokenizer
 from collections import OrderedDict
 from VisualCheXbert.visualchexbert.constants import *
@@ -218,9 +216,6 @@ def label(reports, out_path=None):
 
     df_visualchexbert.insert(loc=0, column='Report Impression', value=reports)
 
-    # Save to CSV
-    # df_visualchexbert.to_csv(os.path.join(out_path, 'labeled_reports.csv'), index=False)
-
     return df_visualchexbert
 
 
@@ -244,9 +239,6 @@ def evaluation_matrix(true, pred):
     p = pred.copy()
     t = t.drop(['Report Impression'], axis=1)
     p = p.drop(['Report Impression'], axis=1)
-    # accuracy = ['Accuracy']
-    # for col in t.columns:
-    #   accuracy.append(accuracy_score(t[col], p[col]))
 
     recall = ['Recall']
     for col in t.columns:
@@ -270,7 +262,6 @@ def evaluation_matrix(true, pred):
     f1.append(f1_score(t, p, average='micro'))
 
     res = pd.DataFrame([
-        # accuracy,
         recall,
         precision,
         f1

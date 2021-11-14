@@ -14,21 +14,6 @@ from preprocess_text import remove_empty, text_preprocessing
 
 from configs import configs
 
-# def get_path(f, path):
-#     return os.path.join(os.path.dirname(f), path).replace('\\', '/')
-
-# configs = {
-#     'image_path': get_path(__file__, 'data/images/images_normalized/'),
-#     'report_csv': get_path(__file__, 'data/indiana_reports.csv'),
-#     'projection_csv': get_path(__file__, 'data/indiana_projections.csv'),
-#     'images_npy_file_path': get_path(__file__, 'data/images.npy'),
-#     'csv_file_path': get_path(__file__, 'data/all.csv'),
-#     'pickle_file_path': get_path(__file__, 'data/image_features.pickle'),
-#     'input_shape': (256, 256, 3),
-#     'START_TOK': '<startseq>',
-#     'STOP_TOK': '<endseq>',
-# }
-
 def add_start_stop(text) -> str:
     return configs['START_TOK'] + ' ' + text.str.strip() + ' ' + configs['STOP_TOK']
 
@@ -191,6 +176,8 @@ def limitgpu(maxmem):
 			print(e)
 
 if __name__ == "__main__":
+    # TODO: Add command line options to do either
+    #       just image or report preprocessing
     df = load_dataframe()
 
     # preprocess reports
@@ -199,11 +186,6 @@ if __name__ == "__main__":
 
     # save to csv file
     save_csv(df)
-
-    # Limit GPU memory, GTX1070 = 6GB
-    # We will do 4GB here
-    # limitgpu(1024*4)
-    # os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
     # preprocess images
     image_mappings = preprocess_images(df)

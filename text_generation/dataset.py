@@ -6,8 +6,6 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from utils import SEED, get_max_report_len, create_embedding_matrix
 from preprocess import load_csv, load_image_mappings
-# from preprocess import configs as configs
-# from train import configs as configs
 from tokenizer import cnn_rnn_tokenizer
 
 
@@ -16,14 +14,6 @@ from configs import configs
 
 MAX_LEN = get_max_report_len()
 
-# configs = {
-#     'train_ratio': 0.75,
-#     'val_ratio': 0.10,
-#     'test_ratio': 0.15,
-#     'train_csv': os.path.join(os.path.dirname(__file__), 'data/train.csv'),
-#     'val_csv': os.path.join(os.path.dirname(__file__), 'data/val.csv'),
-#     'test_csv': os.path.join(os.path.dirname(__file__), 'data/test.csv'),
-# }
 
 def train_val_test_split(X, Y, train, val, test):
     # Fixed random seed
@@ -74,6 +64,7 @@ def balance_shuffle(cleaned_df) -> pd.DataFrame:
     merged = pd.concat(results)
     return merged.reset_index(drop=True)
 
+
 def texts_to_sequences(texts) -> np.array:
     seqs = []
     for sentence in texts:
@@ -94,6 +85,7 @@ def load_features(id_, report):
         train_seq, MAX_LEN, padding='post', dtype=np.int32)
     img_feature = image_mappings[id_.decode('utf-8')]
     return img_feature, train_seq[0]
+
 
 def files_exist():
     """
@@ -123,6 +115,7 @@ def create_dataset(imgpaths, reports, load_features, batch_size=16):
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
     return dataset
+
 
 def get_train_materials():
     global image_mappings, tokenizer, encoder, decoder, optimizer
@@ -176,10 +169,11 @@ def get_train_materials():
     test_generator = create_dataset(
         x_test, y_test, load_features, batch_size=configs['test_batch_size'])
 
-    generators =  (train_generator, val_generator, test_generator)
+    generators = (train_generator, val_generator, test_generator)
     data = x_train, y_train, x_val, y_val, x_test, y_test
 
     return generators, data, tokenizer, embedding_matrix, vocab_size
+
 
 def export_data_csv() -> None:
     """
@@ -200,6 +194,7 @@ def export_data_csv() -> None:
     train_df.to_csv(configs['train_csv'], index=False)
     val_df.to_csv(configs['val_csv'], index=False)
     test_df.to_csv(configs['test_csv'], index=False)
+
 
 if __name__ == '__main__':
     get_train_materials()

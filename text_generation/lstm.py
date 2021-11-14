@@ -3,12 +3,14 @@ from datetime import datetime
 
 DEFAULT_WEIGHT_DIR = 'weights/attention/'
 
+
 def timestamp():
     d = str(datetime.now())
     d = d.replace(' ', '_')
     d = d.replace(':', '-')
     d = d.replace('.', '-')
     return d
+
 
 def loss_function(real, pred):
     """

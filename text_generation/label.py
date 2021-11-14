@@ -10,6 +10,7 @@ MAX_LEN = get_max_report_len()
 START_TOK = preprocess_configs['START_TOK']
 STOP_TOK = preprocess_configs['STOP_TOK']
 
+
 def generate_sentence(encoder, decoder, tokenizer, image_features, batch_size) -> str:
     """
     Using image features of size (batch_size, 8, 8, 1024) to generate a whole sentence
@@ -23,7 +24,8 @@ def generate_sentence(encoder, decoder, tokenizer, image_features, batch_size) -
 
     features = encoder(image_features)
 
-    dec_input = tf.expand_dims([tokenizer.word_index[START_TOK]] * batch_size, 1)
+    dec_input = tf.expand_dims(
+        [tokenizer.word_index[START_TOK]] * batch_size, 1)
     results = [[] for _ in range(batch_size)]
     dones = [False for _ in range(batch_size)]
 
