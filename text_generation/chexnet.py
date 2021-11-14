@@ -1,5 +1,5 @@
 
-import keras
+from tensorflow import keras
 import os
 from tensorflow.keras.applications.densenet import DenseNet121
 from tensorflow.keras.layers import Dense

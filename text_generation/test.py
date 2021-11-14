@@ -1,3 +1,5 @@
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from numpy.core.defchararray import decode
 import torch
 import torch.nn as nn
 import pickle
@@ -5,18 +7,21 @@ import pandas as pd
 import numpy as np
 
 from tqdm import tqdm
+from dataset import get_train_materials
+from label import generate_sentence, prep_models, prettify
 
-# from VisualCheXbert.src.datasets.unlabeled_dataset import UnlabeledDataset
-import visualchexbert.utils as utils
+import VisualCheXbert.visualchexbert.utils as utils
 
-import visualchexbert.bert_tokenizer as bert_tokenizer
-from visualchexbert.models.bert_labeler import bert_labeler
-from visualchexbert.bert_tokenizer import tokenize
+import VisualCheXbert.visualchexbert.bert_tokenizer as bert_tokenizer
+from VisualCheXbert.visualchexbert.models.bert_labeler import bert_labeler
+from VisualCheXbert.visualchexbert.bert_tokenizer import tokenize
 from transformers import BertTokenizer
 from collections import OrderedDict
-from visualchexbert.constants import *
+from VisualCheXbert.visualchexbert.constants import *
 
 from torch.utils.data import Dataset
+from configs import configs
+from numba import cuda 
 
 CHECKPOINT_FOLDER = 'checkpoint/'
 TEMP_CSV_FILENAME = 'temp.csv'
@@ -192,6 +197,10 @@ def label(reports, out_path=None):
         for j in range(len(y_pred)):
             y_pred[j] = torch.cat(y_pred[j], dim=0)
 
+        print(f"{len(y_pred)=}")
+        print(f"{y_pred[0]=}")
+        print(f"{y_pred[1]=}")
+
     if was_training:
         model.train()
 
@@ -215,8 +224,101 @@ def label(reports, out_path=None):
     return df_visualchexbert
 
 
+def decode_report(tokenizer, arr):
+    arr = np.asarray(arr)
+    res = [[] for _ in range(arr.shape[0])]
+
+    for i in range(arr.shape[0]):
+        for j in range(arr.shape[1]):
+            if arr[i][j] != 0:
+                word = tokenizer.index_word[arr[i][j]]
+                if word != configs['START_TOK'] and word != configs['STOP_TOK']:
+                    res[i].append(word)
+        res[i] = ' '.join(res[i])
+
+    return res
+
+
+def evaluation_matrix(true, pred):
+    t = true.copy()
+    p = pred.copy()
+    t = t.drop(['Report Impression'], axis=1)
+    p = p.drop(['Report Impression'], axis=1)
+    # accuracy = ['Accuracy']
+    # for col in t.columns:
+    #   accuracy.append(accuracy_score(t[col], p[col]))
+
+    recall = ['Recall']
+    for col in t.columns:
+        recall.append(recall_score(t[col], p[col]))
+
+    recall.append(recall_score(t, p, average='macro'))
+    recall.append(recall_score(t, p, average='micro'))
+
+    precision = ['Precision']
+    for col in t.columns:
+        precision.append(precision_score(t[col], p[col]))
+
+    precision.append(precision_score(t, p, average='macro'))
+    precision.append(precision_score(t, p, average='micro'))
+
+    f1 = ['F1']
+    for col in t.columns:
+        f1.append(f1_score(t[col], p[col]))
+
+    f1.append(f1_score(t, p, average='macro'))
+    f1.append(f1_score(t, p, average='micro'))
+
+    res = pd.DataFrame([
+        # accuracy,
+        recall,
+        precision,
+        f1
+    ], columns=['Metrics'] + list(t.columns) + ['Macro', 'Micro'])
+    res = res.set_index(['Metrics'])
+
+    return res.T
+
+
+def main():
+    print("Preparing test generator...")
+    generators, _, tokenizer, embedding_matrix, _ = get_train_materials()
+    _, _, test_generator = generators
+
+    print("Preparing models...")
+    encoder, decoder = prep_models(embedding_matrix)
+
+    results = {'ground_truth': [], 'prediction': []}
+
+    # predict
+    print(f"Generating results with batch_size = {configs['test_batch_size']}")
+    for img_tensor, ground_truth in tqdm(test_generator):
+        batch_size = img_tensor.shape[0]
+        pred_report = generate_sentence(
+            encoder, decoder, tokenizer, img_tensor, batch_size)
+        results['prediction'].extend(pred_report)
+
+        # decode ground truth
+        gt = decode_report(tokenizer, ground_truth)
+        results['ground_truth'].extend(gt)
+
+    df = pd.DataFrame(results)
+    df.to_csv(configs['prediction_file_name'])
+
+    device = cuda.get_current_device()
+    device.reset()
+
+    # label with visualchexbert
+    ground_truth_labeled = label(
+        df['ground_truth'].apply(lambda x: prettify(x)).values)
+    prediction_labeled = label(
+        df['prediction'].apply(lambda x: prettify(x)).values)
+    
+    # shows results in evaluation matrix
+    eval_matrix = evaluation_matrix(ground_truth_labeled, prediction_labeled)
+    print(eval_matrix)
+    eval_matrix.to_csv(configs['eval_matrix_file_name'])
+
+
 if __name__ == '__main__':
-    print(label([
-        ['haha your mom ghey'],
-        ['lmao dude that is so lame'],
-    ]))
+    main()

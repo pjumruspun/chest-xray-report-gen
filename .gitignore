@@ -15,8 +15,11 @@ text_generation/train_loss
 text_generation/image_features.pickle 
 
 # Plotted graph
-text_generation/loss_plot.png
+text_generation/*.png
 text_generation/checkpoint/
 
-#
+# VisualCheXbert repo
 text_generation/VisualCheXbert/
+
+# Results CSV files
+text_generation/*.csv

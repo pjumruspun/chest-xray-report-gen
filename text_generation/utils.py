@@ -1,19 +1,16 @@
 import numpy as np
-import os
 from tqdm import tqdm
 from gensim.models import KeyedVectors
 from preprocess import load_csv
-from tokenizer import cnn_rnn_tokenizer
+from configs import configs
 
 SEED = 0
 
-configs = {
-    'pretrained_emb_path': os.path.join(os.path.dirname(__file__), 'weights/pubmed2018_w2v_200D/pubmed2018_w2v_200D.bin'),
-}
-
-def create_embedding_matrix(reports):
-    # Config tokenizer
-    tokenizer = cnn_rnn_tokenizer(reports)
+def create_embedding_matrix(tokenizer) -> np.array:
+    """
+    Create embedding matrix with size of (vocab_size, w2v_size)
+    In this case, w2v_size is always 200 using pubmed2018 pretrained embeddings
+    """
 
     # Get embedding matrix path from configs
     emb_matrix_path = configs['pretrained_emb_path']
@@ -33,7 +30,7 @@ def create_embedding_matrix(reports):
         else:
             continue
 
-    return tokenizer, embedding_matrix, vocab_size, w2v_size
+    return embedding_matrix, vocab_size, w2v_size
 
 
 def get_max_report_len() -> int:

@@ -9,19 +9,18 @@ from tqdm import tqdm
 
 from dataset import get_train_materials
 from lstm import CNN_Encoder, RNN_Decoder, loss_function
-from preprocess import configs
-from preprocess import configs as preprocess_configs
+from configs import configs
 
-configs = {
-    'learning_rate': 1e-3,
-    "embedding_dim": 200,
-    "decoder_units": 80,
-    'epochs': 40,
-    'batch_size': 1,
-}
+# configs = {
+#     'learning_rate': 1e-3,
+#     "embedding_dim": 200,
+#     "decoder_units": 80,
+#     'epochs': 25,
+#     'batch_size': 16,
+# }
 
 image_mappings, tokenizer, encoder, decoder, optimizer = None, None, None, None, None
-START_TOK = preprocess_configs['START_TOK']
+START_TOK = configs['START_TOK']
 
 @tf.function
 def train_step(img_tensor, target, train=True):
@@ -90,10 +89,8 @@ def train(train_generator, val_generator, train_size, val_size):
         if val_loss < best_loss:
             print("New best!")
             best_loss = val_loss
-            encoder.save_weights(
-                f'weights/attention/enc_attention.h5')
-            decoder.save_weights(
-                f'weights/attention/dec_attention.h5')
+            encoder.save_model()
+            decoder.save_model()
 
         print(f'Train loss: {train_loss:.6f}\tVal loss: {val_loss:.6f}')
         print(f'Time taken for this epoch {time.time()-start:.3f} sec\n')
@@ -104,24 +101,26 @@ def train(train_generator, val_generator, train_size, val_size):
     plt.savefig('loss_plot.png')
     plt.show()
 
-
 def main():
     global tokenizer, encoder, decoder, optimizer
+    print("Start training with configs:")
+    print(configs)
 
-    train_generator, val_generator, _, tokenizer, embedding_matrix, vocab_size, train_size, val_size, _ = get_train_materials()
+    generators, data, tokenizer, embedding_matrix, _ = get_train_materials()
+    train_generator, val_generator, _ = generators
+    train_size = data[0].shape[0]
+    val_size = data[2].shape[0]
 
     # Create models
     print("Creating models...")
     encoder = CNN_Encoder(configs['embedding_dim'],
                           batch_size=configs['batch_size'])
     decoder = RNN_Decoder(
-        configs['embedding_dim'], configs['decoder_units'], vocab_size, embedding_matrix)
+        configs['embedding_dim'], configs['decoder_units'], embedding_matrix)
     optimizer = tf.keras.optimizers.Adam(
         learning_rate=configs['learning_rate'])
 
     # Train
-    print("Start training with configs:")
-    print(configs)
     train(train_generator, val_generator, train_size, val_size)
 
 

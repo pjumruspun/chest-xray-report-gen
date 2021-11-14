@@ -1,4 +1,14 @@
 import tensorflow as tf
+from datetime import datetime
+
+DEFAULT_WEIGHT_DIR = 'weights/attention/'
+
+def timestamp():
+    d = str(datetime.now())
+    d = d.replace(' ', '_')
+    d = d.replace(':', '-')
+    d = d.replace('.', '-')
+    return d
 
 def loss_function(real, pred):
     """
@@ -69,14 +79,23 @@ class CNN_Encoder(tf.keras.Model):
         x = self.reshape(x)
         return x
 
+    def save_model(self, directory=DEFAULT_WEIGHT_DIR):
+        print("Saving weights...")
+        self.save_weights(directory + 'encoder_' + timestamp() + '.h5')
+
+    def load_model(self, directory=DEFAULT_WEIGHT_DIR):
+        print("Loading weights...")
+        self.save_weights(directory + 'encoder.h5')
+
 
 class RNN_Decoder(tf.keras.Model):
     """
     Source: https://www.tensorflow.org/tutorials/text/image_captioning
     """
 
-    def __init__(self, embedding_dim, units, vocab_size, embedding_matrix):
+    def __init__(self, embedding_dim, units, embedding_matrix):
         super().__init__()
+        vocab_size = embedding_matrix.shape[0]
         self.units = units
 
         self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim,
@@ -108,3 +127,11 @@ class RNN_Decoder(tf.keras.Model):
 
     def reset_state(self, batch_size):
         return tf.zeros((batch_size, self.units))
+
+    def save_model(self, directory=DEFAULT_WEIGHT_DIR):
+        print("Saving weights...")
+        self.save_weights(directory + 'decoder_' + timestamp() + '.h5')
+
+    def load_model(self, directory=DEFAULT_WEIGHT_DIR):
+        print("Loading weights...")
+        self.load_weights(directory + 'decoder.h5')

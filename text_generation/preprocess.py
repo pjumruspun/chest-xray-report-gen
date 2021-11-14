@@ -12,20 +12,22 @@ from tqdm import tqdm
 from chexnet import ChexNet
 from preprocess_text import remove_empty, text_preprocessing
 
-def get_path(f, path):
-    return os.path.join(os.path.dirname(f), path).replace('\\', '/')
+from configs import configs
 
-configs = {
-    'image_path': get_path(__file__, 'data/images/images_normalized/'),
-    'report_csv': get_path(__file__, 'data/indiana_reports.csv'),
-    'projection_csv': get_path(__file__, 'data/indiana_projections.csv'),
-    'images_npy_file_path': get_path(__file__, 'images.npy'),
-    'csv_file_path': get_path(__file__, 'all.csv'),
-    'pickle_file_path': get_path(__file__, 'image_features.pickle'),
-    'input_shape': (256, 256, 3),
-    'START_TOK': '<startseq>',
-    'STOP_TOK': '<endseq>',
-}
+# def get_path(f, path):
+#     return os.path.join(os.path.dirname(f), path).replace('\\', '/')
+
+# configs = {
+#     'image_path': get_path(__file__, 'data/images/images_normalized/'),
+#     'report_csv': get_path(__file__, 'data/indiana_reports.csv'),
+#     'projection_csv': get_path(__file__, 'data/indiana_projections.csv'),
+#     'images_npy_file_path': get_path(__file__, 'data/images.npy'),
+#     'csv_file_path': get_path(__file__, 'data/all.csv'),
+#     'pickle_file_path': get_path(__file__, 'data/image_features.pickle'),
+#     'input_shape': (256, 256, 3),
+#     'START_TOK': '<startseq>',
+#     'STOP_TOK': '<endseq>',
+# }
 
 def add_start_stop(text) -> str:
     return configs['START_TOK'] + ' ' + text.str.strip() + ' ' + configs['STOP_TOK']

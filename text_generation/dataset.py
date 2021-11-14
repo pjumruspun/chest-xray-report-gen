@@ -6,19 +6,24 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from utils import SEED, get_max_report_len, create_embedding_matrix
 from preprocess import load_csv, load_image_mappings
-from preprocess import configs as preprocess_configs
+# from preprocess import configs as configs
+# from train import configs as configs
+from tokenizer import cnn_rnn_tokenizer
 
 
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+from configs import configs
 
 MAX_LEN = get_max_report_len()
 
-configs = {
-    'batch_size': 1,
-    'train_ratio': 0.75,
-    'val_ratio': 0.10,
-    'test_ratio': 0.15,
-}
+# configs = {
+#     'train_ratio': 0.75,
+#     'val_ratio': 0.10,
+#     'test_ratio': 0.15,
+#     'train_csv': os.path.join(os.path.dirname(__file__), 'data/train.csv'),
+#     'val_csv': os.path.join(os.path.dirname(__file__), 'data/val.csv'),
+#     'test_csv': os.path.join(os.path.dirname(__file__), 'data/test.csv'),
+# }
 
 def train_val_test_split(X, Y, train, val, test):
     # Fixed random seed
@@ -94,23 +99,21 @@ def files_exist():
     """
     Check if image mappings and report df exists
     """
-    pickle_exist = os.path.exists(preprocess_configs['pickle_file_path'])
-    csv_exist = os.path.exists(preprocess_configs['csv_file_path'])
+    pickle_exist = os.path.exists(configs['pickle_file_path'])
+    csv_exist = os.path.exists(configs['csv_file_path'])
 
     if not pickle_exist:
         print(
-            f"Pickle file not found, expected to be at: {preprocess_configs['pickle_file_path']}")
+            f"Pickle file not found, expected to be at: {configs['pickle_file_path']}")
 
     if not csv_exist:
         print(
-            f"Report csv file not found, expected to be at: {preprocess_configs['csv_file_path']}")
+            f"Report csv file not found, expected to be at: {configs['csv_file_path']}")
 
     return pickle_exist and csv_exist
 
 
 def create_dataset(imgpaths, reports, load_features, batch_size=16):
-    # dataset = tf.data.Dataset.from_tensor_slices((balanced_df['imgpath'].values, balanced_df['report'].values, balanced_df['No Finding'].values))
-
     dataset = tf.data.Dataset.from_tensor_slices((imgpaths, reports))
     dataset = dataset.map(lambda item1, item2: tf.numpy_function(load_features, [item1, item2], [tf.float32, tf.int32]),
                           num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -126,7 +129,6 @@ def get_train_materials():
 
     # Check if necessary dataset file exists
     if files_exist():
-
         image_mappings = load_image_mappings()
         df = load_csv()
     else:
@@ -142,6 +144,14 @@ def get_train_materials():
     x_train, x_val, x_test, y_train, y_val, y_test = train_val_test_split(
         X, Y, configs['train_ratio'], configs['val_ratio'], configs['test_ratio'])
 
+    # For saving df
+    train_df, val_df, test_df, _, _, _ = train_val_test_split(
+        balanced_df, Y, configs['train_ratio'], configs['val_ratio'], configs['test_ratio'])
+
+    train_df.to_csv(configs['train_csv'], index=False)
+    val_df.to_csv(configs['val_csv'], index=False)
+    test_df.to_csv(configs['test_csv'], index=False)
+
     print("Data shapes:")
     print(x_train.shape)
     print(x_val.shape)
@@ -150,10 +160,12 @@ def get_train_materials():
     print(y_val.shape)
     print(y_test.shape)
 
+    # Get tokenizer
+    tokenizer = cnn_rnn_tokenizer()
+
     # Create embeddings
     print("Creating embedding matrix...")
-    tokenizer, embedding_matrix, vocab_size, w2v_size = create_embedding_matrix(
-        Y)
+    embedding_matrix, vocab_size, _ = create_embedding_matrix(tokenizer)
 
     print("Building datasets...")
     # Build dataset
@@ -162,6 +174,32 @@ def get_train_materials():
     val_generator = create_dataset(
         x_val, y_val, load_features, batch_size=configs['batch_size'])
     test_generator = create_dataset(
-        x_test, y_test, load_features, batch_size=configs['batch_size'])
+        x_test, y_test, load_features, batch_size=configs['test_batch_size'])
 
-    return train_generator, val_generator, test_generator, tokenizer, embedding_matrix, vocab_size, len(x_train), len(x_val), len(x_test)
+    generators =  (train_generator, val_generator, test_generator)
+    data = x_train, y_train, x_val, y_val, x_test, y_test
+
+    return generators, data, tokenizer, embedding_matrix, vocab_size
+
+def export_data_csv() -> None:
+    """
+    Load all dataframe and shuffle them, then split them into train val test
+    Save all of those dataframes into csv according to configs
+    """
+    df = load_csv()
+
+    # Balance shuffling
+    balanced_df = balance_shuffle(df)
+
+    Y = balanced_df['report'].values
+
+    # For saving df
+    train_df, val_df, test_df, _, _, _ = train_val_test_split(
+        balanced_df, Y, configs['train_ratio'], configs['val_ratio'], configs['test_ratio'])
+
+    train_df.to_csv(configs['train_csv'], index=False)
+    val_df.to_csv(configs['val_csv'], index=False)
+    test_df.to_csv(configs['test_csv'], index=False)
+
+if __name__ == '__main__':
+    get_train_materials()
