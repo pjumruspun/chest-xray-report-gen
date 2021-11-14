@@ -21,6 +21,8 @@ from torch.utils.data import Dataset
 from configs import configs
 from numba import cuda 
 
+from tokenizer import decode_report
+
 CHECKPOINT_FOLDER = 'checkpoint/'
 TEMP_CSV_FILENAME = 'temp.csv'
 
@@ -217,22 +219,6 @@ def label(reports, out_path=None):
     df_visualchexbert.insert(loc=0, column='Report Impression', value=reports)
 
     return df_visualchexbert
-
-
-def decode_report(tokenizer, arr):
-    arr = np.asarray(arr)
-    res = [[] for _ in range(arr.shape[0])]
-
-    for i in range(arr.shape[0]):
-        for j in range(arr.shape[1]):
-            if arr[i][j] != 0:
-                word = tokenizer.index_word[arr[i][j]]
-                if word != configs['START_TOK'] and word != configs['STOP_TOK']:
-                    res[i].append(word)
-        res[i] = ' '.join(res[i])
-
-    return res
-
 
 def evaluation_matrix(true, pred):
     t = true.copy()
