@@ -8,7 +8,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
 from dataset import get_train_materials
-from lstm import CNN_Encoder, RNN_Decoder, loss_function
+from model import CNN_Encoder, RNN_Decoder, loss_function
 from configs import configs
 
 image_mappings, tokenizer, encoder, decoder, optimizer = None, None, None, None, None
