@@ -113,11 +113,11 @@ class RNN_Decoder(tf.keras.Model):
         # defining attention as a separate model
         self.attention = BahdanauAttention(self.units)
 
-    def call(self, x, features, hidden):
-        context_vector, attention_weights = self.attention(features, hidden)
+    def call(self, last_word_idx, image_features, hidden):
+        context_vector, attention_weights = self.attention(image_features, hidden)
 
         # x shape after passing through embedding == (batch_size, 1, embedding_dim)
-        x = self.embedding(x)
+        x = self.embedding(last_word_idx)
         x = tf.concat([tf.expand_dims(context_vector, 1), x], axis=-1)
         output, state = self.gru(x)
 
