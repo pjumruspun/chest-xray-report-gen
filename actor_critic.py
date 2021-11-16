@@ -1,6 +1,6 @@
 import os
 import tensorflow as tf
-import keras
+from tensorflow import keras
 from tensorflow.keras.layers import Dense
 
 

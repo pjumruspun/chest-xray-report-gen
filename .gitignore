@@ -1,6 +1,9 @@
 # Chula rl library
 chula_rl/
 
+# RL plot
+plot.png
+
 # VSCode
 __pycache__/
 .vscode/

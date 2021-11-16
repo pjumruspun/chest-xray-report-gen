@@ -112,6 +112,7 @@ def run(batch_size, lr=1e-5, n_max_interaction=np.inf, max_iter=3000, end_score=
     env.reset()
     features_dim = env.envs[0].reset().shape[0]
     agent = Agent(
+        n_step=1,
         features_dim=features_dim,
         batch_size=batch_size,
         lr=lr,
@@ -141,7 +142,12 @@ def run(batch_size, lr=1e-5, n_max_interaction=np.inf, max_iter=3000, end_score=
 
 
 def main():
-    pass
+    plt.figure(figsize=(15, 5))
+    for i in range(5):
+        res = run(batch_size=16, lr=1e-3, end_score=500, max_iter=100000)
+        plt.plot(res['avg_score_history'])
+    plt.show()
+    plt.savefig('plot.png')
 
 
 def run_param_search(learning_rates=[5e-3, 1e-3], batch_size=16, end_score=200):
@@ -165,4 +171,4 @@ def run_param_search(learning_rates=[5e-3, 1e-3], batch_size=16, end_score=200):
 
 
 if __name__ == "__main__":
-    run_param_search()
+    main()
