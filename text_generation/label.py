@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from lstm import CNN_Encoder, RNN_Decoder
+from model import CNN_Encoder, RNN_Decoder
 from train import configs as train_configs
 from preprocess import configs as preprocess_configs
 from utils import get_max_report_len, create_embedding_matrix

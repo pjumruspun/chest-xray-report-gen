@@ -117,7 +117,7 @@ def create_dataset(imgpaths, reports, load_features, batch_size=16):
     return dataset
 
 
-def get_train_materials():
+def get_train_materials(test_batch_size=None):
     global image_mappings, tokenizer, encoder, decoder, optimizer
 
     # Check if necessary dataset file exists
@@ -166,8 +166,12 @@ def get_train_materials():
         x_train, y_train, load_features, batch_size=configs['batch_size'])
     val_generator = create_dataset(
         x_val, y_val, load_features, batch_size=configs['batch_size'])
-    test_generator = create_dataset(
-        x_test, y_test, load_features, batch_size=configs['test_batch_size'])
+    if test_batch_size is None:
+        test_generator = create_dataset(
+            x_test, y_test, load_features, batch_size=configs['test_batch_size'])
+    else:
+        test_generator = create_dataset(
+            x_test, y_test, load_features, batch_size=test_batch_size)
 
     generators = (train_generator, val_generator, test_generator)
     data = x_train, y_train, x_val, y_val, x_test, y_test
