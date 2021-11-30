@@ -31,7 +31,7 @@ class ChestXRayEnv(gym.Env):
         [/] Max sequence length is reached
     """
 
-    def __init__(self, bos_token, eos_token, tokenizer, vocab_size, max_len):
+    def __init__(self, bos_token, eos_token, tokenizer, vocab_size, max_len, sparse_reward=True):
         self.bos = bos_token
         self.eos = eos_token
         self.tokenizer = tokenizer
@@ -39,6 +39,8 @@ class ChestXRayEnv(gym.Env):
         self.given_reward = False
         self.ground_truth = None
         self.idx = 0
+        self.last_metric = 0.0
+        self.sparse_reward = sparse_reward
 
         # Action is choosing vocab
         self.action_space = spaces.Discrete(vocab_size)
@@ -55,6 +57,7 @@ class ChestXRayEnv(gym.Env):
         self.state = np.zeros((self.max_len))
         self.state[0] = self.tokenizer.word_index[self.bos]
         self.idx = 0
+        self.last_metric = 0.0
         return self.state
 
     def set_ground_truth(self, padded_ground_truth):
@@ -95,28 +98,46 @@ class ChestXRayEnv(gym.Env):
             or action == self.tokenizer.word_index[self.eos]
         )
 
-        if not done:
-            # No reward
-            reward = 0.0
-        else:
-            if not self.given_reward:
-                # Give reward
-                # print(self.ground_truth.shape)
-                # print(self.state.shape)
-                precision, recall, f1 = calculate_reward(self.ground_truth, self.state, self.tokenizer)
-                reward = f1
-
-                # Reset ground truth
-                self.ground_truth = None
+        if self.sparse_reward:
+            if not done:
+                # No reward
+                reward = 0.0
             else:
-                # Already given reward and done before this
-                logger.warn(
-                    "You are calling 'step()' even though this "
-                    "environment has already returned done = True. You "
-                    "should always call 'reset()' once you receive 'done = "
-                    "True' -- any further steps are undefined behavior."
-                )
-            
+                if not self.given_reward:
+                    # Give reward
+                    # print(self.ground_truth.shape)
+                    # print(self.state.shape)
+                    precision, recall, f1 = calculate_reward(self.ground_truth, self.state, self.tokenizer)
+                    reward = f1
+
+                    # Reset ground truth
+                    self.ground_truth = None
+                else:
+                    # Already given reward and done before this
+                    logger.warn(
+                        "You are calling 'step()' even though this "
+                        "environment has already returned done = True. You "
+                        "should always call 'reset()' once you receive 'done = "
+                        "True' -- any further steps are undefined behavior."
+                    )
+        else:
+            # print(f"word: {self.tokenizer.index_word[action]}")
+            # Less sparse reward
+            # Check if the generated word was a full stop or is done
+            if action == self.tokenizer.word_index['.'] or done:
+                precision, recall, f1 = calculate_reward(self.ground_truth, self.state, self.tokenizer)
+                # print(f"f1: {f1}, self.last_metric: {self.last_metric}")
+                reward = f1 - self.last_metric
+                # print(f"reward: {reward}")
+                self.last_metric = f1
+                
+                # Additionally, if done, reset ground truth
+                if done:
+                    self.ground_truth = None
+            else:
+                # No reward
+                reward = 0.0
+
         return self.state, reward, done, {}
 
 def run_env_with_test():
@@ -126,6 +147,8 @@ def run_env_with_test():
     from tokenizer import decode_report
     from tqdm import tqdm
     import matplotlib.pyplot as plt
+
+    sparse_reward = True
 
     # Limit GPU memory to 3GB
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -144,7 +167,7 @@ def run_env_with_test():
     encoder, decoder = prep_models(embedding_matrix)
     
     # Create env
-    env = ChestXRayEnv(configs['START_TOK'], configs['STOP_TOK'], tokenizer, vocab_size, max_len)
+    env = ChestXRayEnv(configs['START_TOK'], configs['STOP_TOK'], tokenizer, vocab_size, max_len, sparse_reward=sparse_reward)
     env.reset()
 
     reward_history = []
@@ -165,6 +188,7 @@ def run_env_with_test():
         dec_input = tf.expand_dims([tokenizer.word_index['<startseq>']], 1)
         res = []
         done = False
+        ep_rewards = []
 
         while not done:
             preds, hidden, _ = decoder(dec_input, image_features, hidden)
@@ -177,7 +201,9 @@ def run_env_with_test():
             res.append(word)
             a = pred_id
             s, r, done, info = env.step(a)
+            # print(f"Word: {word}, Reward: {r}")
             dec_input = tf.expand_dims([pred_id], 1)
+            ep_rewards.append(r)
             
         
         # print("final s, r, done:")
@@ -186,13 +212,24 @@ def run_env_with_test():
         
         # print(f"Predicted: {' '.join(res)}\n")
         # print(f'reward: {r}\n')
-        reward_history.append(r)
+
+        final_reward = np.sum(ep_rewards)
+        reward_history.append(final_reward)
 
         env.reset()
+        # print(ep_rewards)
+        # exit()
+        # print('')
     
     print(f"average_reward = {np.mean(reward_history)}")
     plt.hist(reward_history, bins=10)
-    plt.savefig('reward_history.png')
+    plot_name = 'reward_history'
+    if sparse_reward:
+        plot_name += '_sparse.png'
+    else:
+        plot_name += '_dense.png'
+
+    plt.savefig(plot_name)
     plt.show()
 
 def run_random():
