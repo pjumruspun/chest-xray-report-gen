@@ -148,7 +148,8 @@ def run_env_with_test():
     from tqdm import tqdm
     import matplotlib.pyplot as plt
 
-    sparse_reward = True
+    sparse_reward = False
+    num_instances = 32
 
     # Limit GPU memory to 3GB
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -160,74 +161,79 @@ def run_env_with_test():
     max_len = get_max_report_len()
 
     # For real data and stuff need to create env
-    generators, _, tokenizer, embedding_matrix, vocab_size = get_train_materials(test_batch_size=1)
+    generators, _, tokenizer, embedding_matrix, vocab_size = get_train_materials(test_batch_size=num_instances)
     test_generator = generators[2]
 
     # Models
     encoder, decoder = prep_models(embedding_matrix)
     
-    # Create env
-    env = ChestXRayEnv(configs['START_TOK'], configs['STOP_TOK'], tokenizer, vocab_size, max_len, sparse_reward=sparse_reward)
-    env.reset()
+    # Create env (Parallel)
+    envs = []
+    for _ in range(num_instances):
+        env = ChestXRayEnv(configs['START_TOK'], configs['STOP_TOK'], tokenizer, vocab_size, max_len, sparse_reward=sparse_reward)
+        env.reset()
+        envs.append(env)
 
     reward_history = []
 
-    for img_tensor, ground_truth in tqdm(test_generator):
-        # Need to set ground truth after reset
-        # print(f"Ground truth: {decode_report(tokenizer, ground_truth)}")
-        ground_truth = tf.squeeze(ground_truth).numpy()
-        env.set_ground_truth(ground_truth)
+    for iter, (img_tensor, ground_truth) in enumerate(tqdm(test_generator)):
+        # Actual batch size might not be equal to num_stances at the end of the dataset
+        batch_size = img_tensor.shape[0]
+
+        # Reset the environment and set ground truth
+        for i in range(batch_size):
+            gt = ground_truth[i].numpy()
+            envs[i].reset()
+            envs[i].set_ground_truth(gt)
         
         # Variables before running an opisode
-        done = False
+        dones = [False] * batch_size
+        res = [[] for _ in range(batch_size)] 
+        ep_rewards = [[] for _ in range(batch_size)]
         
         # Models stuff
         hidden = decoder.reset_state(batch_size=1)
         image_features = encoder(img_tensor)
+        dec_input = tf.expand_dims([tokenizer.word_index['<startseq>']] * batch_size, 1)
 
-        dec_input = tf.expand_dims([tokenizer.word_index['<startseq>']], 1)
-        res = []
-        done = False
-        ep_rewards = []
-
-        while not done:
+        while not all(dones):
             preds, hidden, _ = decoder(dec_input, image_features, hidden)
             
             # Log prob sample
-            pred_id = tf.random.categorical(preds, 1)[0][0].numpy()
+            pred_ids = tf.random.categorical(preds, 1).numpy()
 
             # Decode
-            word = tokenizer.index_word[pred_id]
-            res.append(word)
-            a = pred_id
-            s, r, done, info = env.step(a)
-            # print(f"Word: {word}, Reward: {r}")
-            dec_input = tf.expand_dims([pred_id], 1)
-            ep_rewards.append(r)
+            words = [tokenizer.index_word[id[0]] for id in pred_ids]
+
+            for i in range(batch_size):
+                if not dones[i]:
+                    res[i].append(words[i])
             
-        
-        # print("final s, r, done:")
-        # print(f"{s}, {r}, {done}")
-        # print(f"res: {res}")
-        
-        # print(f"Predicted: {' '.join(res)}\n")
-        # print(f'reward: {r}\n')
+            actions = [id[0] for id in pred_ids]
+            states = []
+            rewards = []
 
-        final_reward = np.sum(ep_rewards)
-        reward_history.append(final_reward)
+            for i in range(batch_size):
+                if not dones[i]:
+                    s, r, done, info = envs[i].step(actions[i])
+                    states.append(s)
+                    rewards.append(r)
+                    dones[i] = done
+                    ep_rewards[i].append(r)
 
-        env.reset()
-        # print(ep_rewards)
-        # exit()
-        # print('')
+            dec_input = pred_ids
+        
+        # Append results
+        reward_history.extend([sum(ep_reward) for ep_reward in ep_rewards])
+
     
     print(f"average_reward = {np.mean(reward_history)}")
     plt.hist(reward_history, bins=10)
-    plot_name = 'reward_history'
+    plot_name = 'reward_history_parallel'
     if sparse_reward:
-        plot_name += '_sparse.png'
+        plot_name += f'_sparse_{str(num_instances)}.png'
     else:
-        plot_name += '_dense.png'
+        plot_name += f'_dense_{str(num_instances)}.png'
 
     plt.savefig(plot_name)
     plt.show()
