@@ -30,4 +30,5 @@ configs = {
     'prediction_file_name': 'prediction.csv',
     'eval_matrix_file_name': 'eval_matrix.csv',
     'pretrained_emb_path': os.path.join(os.path.dirname(__file__), 'weights/pubmed2018_w2v_200D/pubmed2018_w2v_200D.bin'),
+    'emb_matrix_path': os.path.join(os.path.dirname(__file__), 'weights/embedding_matrix.npy')
 }
