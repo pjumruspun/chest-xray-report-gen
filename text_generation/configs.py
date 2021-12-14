@@ -22,6 +22,8 @@ configs = {
     'START_TOK': '<startseq>',
     'STOP_TOK': '<endseq>',
     'learning_rate': 1e-3,
+    'encoder_lr': 5e-4,
+    'decoder_lr': 5e-4,
     "embedding_dim": 200,
     "decoder_units": 80,
     'epochs': 25,
