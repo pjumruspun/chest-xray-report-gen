@@ -9,7 +9,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from tqdm import tqdm
 from label import prettify
-from pytorch_label import caption_image_beam_search
+from pytorch_label import temperature_sampling
 
 import VisualCheXbert.visualchexbert.utils as utils
 
@@ -265,85 +265,92 @@ def evaluation_matrix(true, pred):
 
 def main():
     checkpoint_paths = [
-        "weights\pytorch_attention\checkpoint_2021-12-13_21-04-41.632539.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-13_21-29-00.708475.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-13_21-52-35.726799.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-13_22-23-05.938944.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-13_22-47-18.564559.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-13_23-11-15.179474.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-13_23-34-31.115275.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-13_23-57-37.200092.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_00-20-49.084023.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_00-43-58.777496.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_01-07-09.016551.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_01-30-12.054247.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_01-53-22.372573.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_02-16-39.428884.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_02-39-45.241841.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_12-05-27.843526.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_12-28-11.592583.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_12-50-48.187843.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-13_21-04-41.632539.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-13_21-29-00.708475.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-13_21-52-35.726799.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-13_22-23-05.938944.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-13_22-47-18.564559.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-13_23-11-15.179474.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-13_23-34-31.115275.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-13_23-57-37.200092.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_00-20-49.084023.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_00-43-58.777496.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_01-07-09.016551.pth.tar", # <- 0.22 micro f1
+        # "weights\pytorch_attention\checkpoint_2021-12-14_01-30-12.054247.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_01-53-22.372573.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_02-16-39.428884.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_02-39-45.241841.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_12-05-27.843526.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_12-28-11.592583.pth.tar",
+        # "weights\pytorch_attention\checkpoint_2021-12-14_12-50-48.187843.pth.tar",
+        "weights\pytorch_attention\checkpoint_2021-12-14_14-23-42.430392.pth.tar"
     ]
 
+    temperatures = [0.5, 0.75, 1.0, 1.25, 1.5]
+
     for checkpoint_path in checkpoint_paths:
-        print("Preparing test generator...")
+        for temperature in temperatures:
+            for attempt in range(3):
+                print("Preparing test generator...")
 
-        tokenizer = create_tokenizer()
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        test_loader = DataLoader(
-            ChestXRayDataset('test', transform=transforms.Compose([normalize])),
-            batch_size=1,
-            shuffle=False,
-            num_workers=1,
-            pin_memory=True
-        )
+                tokenizer = create_tokenizer()
+                normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                test_loader = DataLoader(
+                    ChestXRayDataset('test', transform=transforms.Compose([normalize])),
+                    batch_size=1,
+                    shuffle=False,
+                    num_workers=1,
+                    pin_memory=True
+                )
 
-        print("Preparing models...")
-        
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # checkpoint_path = 'weights/pytorch_attention/checkpoint_2021-12-14_14-23-42.430392.pth.tar'
-        checkpoint = torch.load(checkpoint_path)
-        encoder = checkpoint['encoder']
-        decoder = checkpoint['decoder']
-        epoch = checkpoint['epoch'] + 1
-        print(f"Using epoch {epoch} model...")
-        encoder.to(device)
-        decoder.to(device)
+                print("Preparing models...")
+                
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                # checkpoint_path = 'weights/pytorch_attention/checkpoint_2021-12-14_14-23-42.430392.pth.tar'
+                checkpoint = torch.load(checkpoint_path)
+                encoder = checkpoint['encoder']
+                decoder = checkpoint['decoder']
+                epoch = checkpoint['epoch'] + 1
+                print(f"Using epoch {epoch} model...")
+                encoder.to(device)
+                decoder.to(device)
 
-        results = {'ground_truth': [], 'prediction': []}
+                results = {'ground_truth': [], 'prediction': []}
 
-        # predict
-        print(f"Generating results with batch_size = 1")
-        for i, (imgs, caps, caplens, _) in enumerate(tqdm(test_loader)):
+                # predict
+                print(f"Generating results with batch_size = 1")
+                for i, (imgs, caps, caplens, _) in enumerate(tqdm(test_loader)):
 
-            imgs = torch.squeeze(imgs)
-            seq, _ = caption_image_beam_search(encoder, decoder, tokenizer, image=imgs, beam_size=3)
-            seq = ' '.join([tokenizer.itos[idx] for idx in seq])
-            results['prediction'].append(seq)
+                    imgs = torch.squeeze(imgs)
+                    seq, _ = temperature_sampling(encoder, decoder, tokenizer, image=imgs, temperature=temperature, max_len=100)
+                    seq = ' '.join([tokenizer.itos[idx] for idx in seq])
+                    results['prediction'].append(seq)
 
-            # decode ground truth
-            gt = ' '.join([tokenizer.itos[idx] for idx in caps[0] if idx != tokenizer.stoi['<pad>']])
-            results['ground_truth'].append(gt)
-            if i == 100:
-                break
+                    # decode ground truth
+                    gt = ' '.join([tokenizer.itos[idx] for idx in caps[0] if idx != tokenizer.stoi['<pad>']])
+                    results['ground_truth'].append(gt)
+                    if i == 100:
+                        break
 
-        unique_name = checkpoint_path.split('\\')[-1]
-        df = pd.DataFrame(results)
-        df.to_csv(unique_name + '_' + configs['prediction_file_name'])
+                # unique_name = checkpoint_path.split('\\')[-1]
+                unique_name = f"temp_{temperature}_{str(attempt+1)}"
 
-        # device = cuda.get_current_device()
-        # device.reset()
+                df = pd.DataFrame(results)
+                df.to_csv(unique_name + '_' + configs['prediction_file_name'])
 
-        # label with visualchexbert
-        ground_truth_labeled = label(
-            df['ground_truth'].apply(lambda x: prettify(x)).values)
-        prediction_labeled = label(
-            df['prediction'].apply(lambda x: prettify(x)).values)
-        
-        # shows results in evaluation matrix
-        eval_matrix = evaluation_matrix(ground_truth_labeled, prediction_labeled)
-        print(eval_matrix)
-        eval_matrix.to_csv(unique_name + '_' + configs['eval_matrix_file_name'])
+                # device = cuda.get_current_device()
+                # device.reset()
+
+                # label with visualchexbert
+                ground_truth_labeled = label(
+                    df['ground_truth'].apply(lambda x: prettify(x)).values)
+                prediction_labeled = label(
+                    df['prediction'].apply(lambda x: prettify(x)).values)
+                
+                # shows results in evaluation matrix
+                eval_matrix = evaluation_matrix(ground_truth_labeled, prediction_labeled)
+                print(eval_matrix)
+                eval_matrix.to_csv(unique_name + '_' + configs['eval_matrix_file_name'])
 
 
 if __name__ == '__main__':
