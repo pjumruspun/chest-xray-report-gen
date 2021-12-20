@@ -5,75 +5,97 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 from pytorch_tokenizer import create_tokenizer
 from torch.distributions import Categorical
+from utils import decode_sequences
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def temperature_sampling(encoder, decoder, tokenizer, image_path=None, image=None, temperature=1.5, max_len=100):
+def temperature_sampling(encoder, decoder, tokenizer, image_paths=None, images=None, temperature=1.5, max_len=100):
+    # continue only image_path XOR image is given
+    assert (
+        not(image_paths is None and images is None) and 
+        not(image_paths is not None and images is not None)
+    )
+
     vocab_size = len(tokenizer)
 
-    if image_path is not None:
-        # Read image and process
-        img = imread(image_path)
-        img = resize(img, (256, 256, 3))
+    if image_paths is not None:
+        images = []
 
-        img = torch.FloatTensor(img).to(device)
-        img = img.permute(2, 0, 1) # (3, 256, 256)
+        for image_path in image_paths:
+            # Read image and process
+            img = imread(image_path)
+            img = resize(img, (256, 256, 3))
+            images.append(img)
+
+        images = torch.FloatTensor(images).to(device) # (len(image_paths), 256, 256, 3)
+        images = images.permute(0, 3, 1, 2) # (len(image_paths), 3, 256, 256)
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                         std=[0.229, 0.224, 0.225])
         transform = transforms.Compose([normalize])
-        image = transform(img)  # (3, 256, 256)
-        image = image.permute(1, 2, 0) # (256, 256, 3)
+        images = transform(images) # (len(image_paths), 3, 256, 256)
+        images = images.permute(0, 2, 3, 1) # (len(image_paths), 256, 256, 3)
 
     # Encode
-    image = image.unsqueeze(0)  # (1, 256, 256, 3)
-    image = image.to(device)
-    encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim)
+    batch_size = images.shape[0]
+    # image = images.unsqueeze(0)  # (batch_size, 256, 256, 3)
+    images = images.to(device)
+    encoder_out = encoder(images)  # (batch_size, enc_image_size, enc_image_size, encoder_dim)
     enc_image_size = encoder_out.size(1)
     encoder_dim = encoder_out.size(3)
 
     # Flatten encoding
-    encoder_out = encoder_out.view(1, -1, encoder_dim)  # (1, num_pixels, encoder_dim)
+    encoder_out = encoder_out.view(batch_size, -1, encoder_dim)  # (batch_size, num_pixels, encoder_dim)
     num_pixels = encoder_out.size(1)
 
     # Tensors for generating
-    prev_word = torch.LongTensor([[tokenizer.stoi['<startseq>']]]).to(device) # (1, 1)
+    prev_words = torch.LongTensor([[tokenizer.stoi['<startseq>']]] * batch_size).to(device) # (batch_size, 1)
+    
+    # Variables for keeping track of
+    dones = [False for _ in range(batch_size)]
     step = 1
-    h, c = decoder.init_hidden_state(encoder_out)
-    seq = []
+
+    # Init hidden states
+    h, c = decoder.init_hidden_state(encoder_out) # (batch_size, decoder_dim)
+
+    # Generated sequences
+    seqs = [[] for _ in range(batch_size)]
 
     while True:
-        embeddings = decoder.embedding(prev_word).squeeze(1)  # (s, embed_dim)
+        embeddings = decoder.embedding(prev_words).squeeze(1)  # (batch_size, embed_dim)
+        
+        awe, alpha = decoder.attention(encoder_out, h)  # (batch_size, encoder_dim), (batch_size, num_pixels)
 
-        awe, alpha = decoder.attention(encoder_out, h)  # (s, encoder_dim), (s, num_pixels)
+        alpha = alpha.view(-1, enc_image_size, enc_image_size)  # (batch_size, enc_image_size, enc_image_size)
 
-        alpha = alpha.view(-1, enc_image_size, enc_image_size)  # (s, enc_image_size, enc_image_size)
-
-        gate = decoder.sigmoid(decoder.f_beta(h))  # gating scalar, (s, encoder_dim)
+        gate = decoder.sigmoid(decoder.f_beta(h))  # gating scalar, (batch_size, encoder_dim)
         awe = gate * awe
 
-        h, c = decoder.decode_step(torch.cat([embeddings, awe], dim=1), (h, c))  # (s, decoder_dim)
+        decoder_input = torch.cat([embeddings, awe], dim=1)
+        h, c = decoder.decode_step(decoder_input, (h, c))  # (batch_size, decoder_dim)
 
-        scores = decoder.fc(h)  # (s, vocab_size)
-        scores = F.softmax(scores/temperature, dim=1)
+        scores = decoder.fc(h)  # (batch_size, vocab_size)
+        scores = F.softmax(scores / temperature, dim=1) # (batch_size, vocab_size)
 
-        # idx = torch.argmax(scores[0])
         dist = Categorical(scores)
-        idx = dist.sample()
+        indices = dist.sample() # (batch_size, vocab_size)
 
         # Finished?
-        done = (
-            step > max_len or
-            idx == tokenizer.stoi['<endseq>']
-        )
+        for i in range(batch_size):
+            idx = indices[i].item()
+            if idx == tokenizer.stoi['<endseq>']:
+                dones[i] = True
 
-        if done:
+        if all(dones) or step > max_len:
             break
+        
+        for i, (seq, idx) in enumerate(zip(seqs, indices)):
+            if not dones[i]:
+                seq.append(idx.item())
 
-        seq.append(idx[0])
-        prev_word = torch.unsqueeze(idx, 0)
+        prev_words = torch.unsqueeze(indices, 1)
         step += 1
     
-    return seq, None
+    return seqs, None
 
 def caption_image_beam_search(encoder, decoder, tokenizer, image_path=None, image=None, beam_size=3):
     """
@@ -237,12 +259,17 @@ def test_temperature_sampling():
     decoder = checkpoint['decoder']
     encoder.to(device)
     decoder.to(device)
-    image_path = 'data/images/images_normalized/3095_IM-1448-1001.dcm.png'
+    image_paths = [
+        'data/images/images_normalized/3095_IM-1448-1001.dcm.png',
+        'data/images/images_normalized/1_IM-0001-3001.dcm.png',
+    ]
     start = time.time()
-    seq, _ = temperature_sampling(encoder, decoder, tokenizer, image_path=image_path, temperature=1.2, max_len=100)
+    seqs, _ = temperature_sampling(encoder, decoder, tokenizer, image_paths=image_paths, temperature=1.2, max_len=100)
     end = time.time()
     print(f"time taken = {end-start:.3f} seconds")
-    print([tokenizer.itos[idx] for idx in seq])
+    print(f"time taken per image = {(end-start)/len(image_paths):.3f} seconds")
+    # print([' '.join([tokenizer.itos[idx] for idx in seq]) for seq in seqs])
+    print(decode_sequences(tokenizer, seqs))
 
 if __name__ == "__main__":
     test_temperature_sampling()

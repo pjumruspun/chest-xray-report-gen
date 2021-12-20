@@ -6,6 +6,7 @@ import pickle
 import pandas as pd
 import numpy as np
 from torch.utils.data.dataloader import DataLoader
+from utils import decode_sequences
 
 from tqdm import tqdm
 from label import prettify
@@ -275,7 +276,7 @@ def main():
         # "weights\pytorch_attention\checkpoint_2021-12-13_23-57-37.200092.pth.tar",
         # "weights\pytorch_attention\checkpoint_2021-12-14_00-20-49.084023.pth.tar",
         # "weights\pytorch_attention\checkpoint_2021-12-14_00-43-58.777496.pth.tar",
-        # "weights\pytorch_attention\checkpoint_2021-12-14_01-07-09.016551.pth.tar", # <- 0.22 micro f1
+        "weights\pytorch_attention\checkpoint_2021-12-14_01-07-09.016551.pth.tar", # <- 0.22 micro f1
         # "weights\pytorch_attention\checkpoint_2021-12-14_01-30-12.054247.pth.tar",
         # "weights\pytorch_attention\checkpoint_2021-12-14_01-53-22.372573.pth.tar",
         # "weights\pytorch_attention\checkpoint_2021-12-14_02-16-39.428884.pth.tar",
@@ -283,21 +284,22 @@ def main():
         # "weights\pytorch_attention\checkpoint_2021-12-14_12-05-27.843526.pth.tar",
         # "weights\pytorch_attention\checkpoint_2021-12-14_12-28-11.592583.pth.tar",
         # "weights\pytorch_attention\checkpoint_2021-12-14_12-50-48.187843.pth.tar",
-        "weights\pytorch_attention\checkpoint_2021-12-14_14-23-42.430392.pth.tar"
+        # "weights\pytorch_attention\checkpoint_2021-12-14_14-23-42.430392.pth.tar"
     ]
 
-    temperatures = [0.5, 0.75, 1.0, 1.25, 1.5]
+    temperatures = [1.5]
+    batch_size = 25
 
     for checkpoint_path in checkpoint_paths:
         for temperature in temperatures:
-            for attempt in range(3):
+            for attempt in range(1):
                 print("Preparing test generator...")
 
                 tokenizer = create_tokenizer()
                 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
                 test_loader = DataLoader(
                     ChestXRayDataset('test', transform=transforms.Compose([normalize])),
-                    batch_size=1,
+                    batch_size=batch_size,
                     shuffle=False,
                     num_workers=1,
                     pin_memory=True
@@ -318,18 +320,17 @@ def main():
                 results = {'ground_truth': [], 'prediction': []}
 
                 # predict
-                print(f"Generating results with batch_size = 1")
+                print(f"Generating results with batch_size = {batch_size}")
                 for i, (imgs, caps, caplens, _) in enumerate(tqdm(test_loader)):
-
-                    imgs = torch.squeeze(imgs)
-                    seq, _ = temperature_sampling(encoder, decoder, tokenizer, image=imgs, temperature=temperature, max_len=100)
-                    seq = ' '.join([tokenizer.itos[idx] for idx in seq])
-                    results['prediction'].append(seq)
+                    seqs, _ = temperature_sampling(encoder, decoder, tokenizer, images=imgs, temperature=temperature, max_len=100)
+                    sentences = decode_sequences(tokenizer, seqs)
+                    results['prediction'].extend(sentences)
 
                     # decode ground truth
-                    gt = ' '.join([tokenizer.itos[idx] for idx in caps[0] if idx != tokenizer.stoi['<pad>']])
-                    results['ground_truth'].append(gt)
-                    if i == 100:
+                    gts = decode_sequences(tokenizer, caps)
+                    results['ground_truth'].extend(gts)
+
+                    if i == 4:
                         break
 
                 # unique_name = checkpoint_path.split('\\')[-1]

@@ -51,3 +51,17 @@ def get_max_report_len() -> int:
     df = load_csv()
     lengths = df['report'].apply(lambda x: x.split()).str.len()
     return lengths.max()
+
+def decode_sequences(tokenizer, seqs):
+    """
+    Parameters:
+        tokenizer: torch.data.utils tokenizer
+        seqs: list of lists or alike structure containing indices
+    Returns:
+        list of sentences (list of str)
+    """
+
+    exempt_words = ['<pad>', '<startseq>', '<endseq>', '<unk>']
+    exempt_toks = [tokenizer.stoi[word] for word in exempt_words]
+    sentences = [' '.join([tokenizer.itos[int(idx)] for idx in seq if idx not in exempt_toks]) for seq in seqs]
+    return sentences
