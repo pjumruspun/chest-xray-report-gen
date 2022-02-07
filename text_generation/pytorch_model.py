@@ -109,6 +109,9 @@ class Decoder(nn.Module):
         self.vocab_size = vocab_size
         self.dropout = dropout
 
+        self.saved_actions = []
+        self.rewards = []
+
         self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
 
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
@@ -119,6 +122,7 @@ class Decoder(nn.Module):
         self.f_beta = nn.Linear(decoder_dim, encoder_dim)  # linear layer to create a sigmoid-activated gate
         self.sigmoid = nn.Sigmoid()
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
+        self.v = nn.Linear(decoder_dim, 1) # value head
         self.init_weights()  # initialize some layers with the uniform distribution
 
     def init_weights(self):
@@ -128,6 +132,8 @@ class Decoder(nn.Module):
         self.embedding.weight.data.uniform_(-0.1, 0.1)
         self.fc.bias.data.fill_(0)
         self.fc.weight.data.uniform_(-0.1, 0.1)
+        self.v.bias.data.fill_(0)
+        self.v.weight.data.uniform_(-0.1, 0.1)
 
     def load_pretrained_embeddings(self, embeddings):
         """

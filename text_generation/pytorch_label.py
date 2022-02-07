@@ -9,7 +9,8 @@ from utils import decode_sequences
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def temperature_sampling(encoder, decoder, tokenizer, image_paths=None, images=None, temperature=1.5, max_len=100):
+def temperature_sampling(encoder, decoder, tokenizer, image_paths=None, 
+                        images=None, temperature=1.5, max_len=100, rl=False):
     # continue only image_path XOR image is given
     assert (
         not(image_paths is None and images is None) and 
@@ -60,7 +61,11 @@ def temperature_sampling(encoder, decoder, tokenizer, image_paths=None, images=N
     # Generated sequences
     seqs = [[] for _ in range(batch_size)]
 
+    # Saved chosen action value and its log prob
+    decoder.saved_actions = [[] for _ in range(batch_size)]
+
     while True:
+        # Shared layers
         embeddings = decoder.embedding(prev_words).squeeze(1)  # (batch_size, embed_dim)
         
         awe, alpha = decoder.attention(encoder_out, h)  # (batch_size, encoder_dim), (batch_size, num_pixels)
@@ -73,11 +78,33 @@ def temperature_sampling(encoder, decoder, tokenizer, image_paths=None, images=N
         decoder_input = torch.cat([embeddings, awe], dim=1)
         h, c = decoder.decode_step(decoder_input, (h, c))  # (batch_size, decoder_dim)
 
+        # Probs
         scores = decoder.fc(h)  # (batch_size, vocab_size)
         scores = F.softmax(scores / temperature, dim=1) # (batch_size, vocab_size)
 
-        dist = Categorical(scores)
+        try:
+            dist = Categorical(scores)
+        except ValueError as e:
+            print(f"{scores=}")
+            print(e)
         indices = dist.sample() # (batch_size, vocab_size)
+        
+        for i, (seq, idx) in enumerate(zip(seqs, indices)):
+            if not dones[i]:
+                seq.append(idx.item())
+
+        if rl:
+            values = decoder.v(h) # (batch_size, 1)
+            log_probs = dist.log_prob(indices) # (batch_size)
+
+            if values.dim() > 1:
+                zipped = zip(log_probs, torch.squeeze(values))
+            else:
+                zipped = zip(log_probs, values)
+            
+            for i, (log_prob, value) in enumerate(zipped):
+                if not dones[i]:
+                    decoder.saved_actions[i].append([log_prob, value])
 
         # Finished?
         for i in range(batch_size):
@@ -86,11 +113,9 @@ def temperature_sampling(encoder, decoder, tokenizer, image_paths=None, images=N
                 dones[i] = True
 
         if all(dones) or step > max_len:
+            # print(f"Finished! With lengths: {[len(e) for e in decoder.saved_actions]}")
+            # print(f"Seq lengths: {[len(e) for e in seqs]}")
             break
-        
-        for i, (seq, idx) in enumerate(zip(seqs, indices)):
-            if not dones[i]:
-                seq.append(idx.item())
 
         prev_words = torch.unsqueeze(indices, 1)
         step += 1
@@ -253,7 +278,8 @@ def test_beam_search():
 def test_temperature_sampling():
     import time
     tokenizer = create_tokenizer()
-    checkpoint_path = 'weights/pytorch_attention/checkpoint_2021-12-14_13-13-34.062632.pth.tar'
+    # checkpoint_path = 'weights/pytorch_attention/checkpoint_2022-01-07_17-44-48.868114.pth.tar' # RL
+    checkpoint_path = "weights\pytorch_attention\checkpoint_2021-12-21_03-32-00.004925.pth.tar" # Normal
     checkpoint = torch.load(checkpoint_path)
     encoder = checkpoint['encoder']
     decoder = checkpoint['decoder']
@@ -266,6 +292,7 @@ def test_temperature_sampling():
     start = time.time()
     seqs, _ = temperature_sampling(encoder, decoder, tokenizer, image_paths=image_paths, temperature=1.2, max_len=100)
     end = time.time()
+    print(seqs)
     print(f"time taken = {end-start:.3f} seconds")
     print(f"time taken per image = {(end-start)/len(image_paths):.3f} seconds")
     # print([' '.join([tokenizer.itos[idx] for idx in seq]) for seq in seqs])
