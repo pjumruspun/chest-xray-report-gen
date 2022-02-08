@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 from tqdm import tqdm
-from dataset import get_train_materials
+from data_split import get_train_materials
 from label import generate_sentence, prep_models, prettify
 
 import VisualCheXbert.visualchexbert.utils as utils

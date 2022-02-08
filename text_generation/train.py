@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
-from dataset import get_train_materials
+from data_split import get_train_materials
 from model import CNN_Encoder, RNN_Decoder, loss_function
 from configs import configs
 
