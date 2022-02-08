@@ -97,7 +97,8 @@ def temperature_sampling(encoder, decoder, tokenizer, image_paths=None,
             values = decoder.v(h) # (batch_size, 1)
             log_probs = dist.log_prob(indices) # (batch_size)
 
-            if values.dim() > 1:
+            # Why torch.squeeze yields dim = 0 ????
+            if torch.squeeze(values).dim() > 0:
                 zipped = zip(log_probs, torch.squeeze(values))
             else:
                 zipped = zip(log_probs, values)

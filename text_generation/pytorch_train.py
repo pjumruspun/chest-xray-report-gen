@@ -1,9 +1,11 @@
+from sklearn.model_selection import train_test_split
 from torch.nn.modules import loss
 from pytorch_model import Encoder, Decoder
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence
 import torchvision.transforms as transforms
 from pytorch_dataset import ChestXRayDataset
+from torch.utils.tensorboard import SummaryWriter
 import torch
 from torch import nn
 from configs import configs
@@ -18,8 +20,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print_freq = 5
 
 # Train parameters
-start_epoch = 0
-epochs = 12
+start_epoch = 2
+epochs = 20
+train_batch_size = 32
+val_batch_size = 32
 fine_tune_encoder = True
 
 # Model parameters
@@ -29,7 +33,7 @@ decoder_dim = 256  # dimension of decoder RNN
 dropout = 0.5
 
 # Do we save?
-checkpoint_path = 'weights/pytorch_attention/' + 'checkpoint_2021-12-14_02-39-45.241841.pth.tar' # epoch 20
+checkpoint_path = 'weights/pytorch_attention/' + 'checkpoint_2022-02-07_16-36-00.519912.pth.tar'
 # checkpoint_path = None
 
 class AverageMeter(object):
@@ -72,6 +76,7 @@ def main():
     loss_function = nn.CrossEntropyLoss().to(device)
 
     if checkpoint_path is None:
+        start_epoch = 0
         encoder = Encoder()
         decoder = Decoder(attention_dim=attention_dim,
                                         embed_dim=emb_dim,
@@ -106,14 +111,14 @@ def main():
 
     train_loader = DataLoader(
         ChestXRayDataset('train', transform=transforms.Compose([normalize])), 
-        batch_size=32, 
+        batch_size=train_batch_size, 
         shuffle=True, 
         num_workers=1, 
         pin_memory=True)
 
     val_loader = DataLoader(
         ChestXRayDataset('val', transform=transforms.Compose([normalize])), 
-        batch_size=32, 
+        batch_size=val_batch_size, 
         shuffle=True, 
         num_workers=1, 
         pin_memory=True)
@@ -220,6 +225,8 @@ def train(encoder, decoder, loss_function, train_loader, encoder_optimizer, deco
                                                                           batch_time=batch_time,
                                                                           data_time=data_time, loss=losses,
                                                                           top5=top5accs))
+    
+    avg_train_loss = losses.avg
 
 def validate(val_loader, encoder, decoder, loss_function, tokenizer):
     """
@@ -329,6 +336,8 @@ def validate(val_loader, encoder, decoder, loss_function, tokenizer):
                 loss=losses,
                 top5=top5accs,
                 bleu=bleu4))
+
+    avg_val_loss = losses.avg
 
     return bleu4
 

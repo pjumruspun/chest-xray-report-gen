@@ -30,8 +30,10 @@ def rem_dcolon(text):
 def rem_irrelevant_strings(text):
     """Removes irrevelant substrings from text"""
     new_text = []
-    irrelevant = ['as compared to the previous radiograph',
-                  'no previous images']
+    irrelevant = [
+        'as compared to the previous radiograph',
+        'no previous images',
+    ]
     for line in text:
         temp = line
         for ir in irrelevant:
@@ -137,6 +139,15 @@ def multiple_spaces(text):
     return new_text
 
 
+def multiple_x(text):
+    # new_text = []
+    # for line in text:
+    #     new_text.append(' '.join(e for e in line.split()))
+    new_text = [re.sub(' x{2,}', '', x).strip() for x in text]
+    new_text = [re.sub('x{2,}', '', x).strip() for x in text]
+    return new_text
+
+
 def separting_startg_words(text):
     new_text = []
     for line in text:
@@ -182,6 +193,7 @@ def text_preprocessing(text):
     new_text = decontractions(new_text)
     new_text = rem_punctuations(new_text)
     new_text = multiple_fullstops(new_text)
+    new_text = multiple_x(new_text)
     new_text = fullstops(new_text)
     new_text = separting_startg_words(new_text)
     new_text = rem_apostrophes(new_text)
@@ -201,3 +213,10 @@ def remove_empty(inp):
     res = df[length > 1].reset_index(drop=True)
 
     return res
+
+if __name__ == '__main__':
+    t = [
+        'hello xx he xxx hellooo xxxx .',
+        'xx xxxx xxxxx ee',
+    ]
+    print(multiple_x(t))

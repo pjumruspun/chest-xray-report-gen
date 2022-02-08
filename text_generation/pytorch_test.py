@@ -286,31 +286,33 @@ def main():
         # "weights\pytorch_attention\checkpoint_2021-12-14_12-50-48.187843.pth.tar",
         # "weights\pytorch_attention\checkpoint_2021-12-14_14-23-42.430392.pth.tar",
         # 'weights/pytorch_attention/checkpoint_2022-01-07_17-44-48.868114.pth.tar', # <- RL
-        'weights/pytorch_attention/checkpoint_2022-01-18_19-05-33.048100.pth.tar', # <- working RL
+        # 'weights/pytorch_attention/checkpoint_2022-01-18_19-05-33.048100.pth.tar', # <- working RL
+        # 'weights\pytorch_attention\checkpoint_2022-02-08_01-29-52.625176.pth.tar', # <- cleaned epoch 20 0.2957 macro f1
+        'weights\pytorch_attention\checkpoint_2022-02-08_10-37-10.316094.pth.tar', # <- cleaned RL epoch 3
     ]
 
-    temperatures = [1.25]
-    batch_size = 16
+    temperatures = [1.0]
+    batch_size = 32
+    print("Preparing test generator...")
+
+    tokenizer = create_tokenizer()
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    test_loader = DataLoader(
+        ChestXRayDataset('test', transform=transforms.Compose([normalize])),
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=1,
+        pin_memory=True
+    )
+
+    first_time = True
 
     for checkpoint_path in checkpoint_paths:
         for temperature in temperatures:
             for attempt in range(1):
-                print("Preparing test generator...")
-
-                tokenizer = create_tokenizer()
-                normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                test_loader = DataLoader(
-                    ChestXRayDataset('test', transform=transforms.Compose([normalize])),
-                    batch_size=batch_size,
-                    shuffle=False,
-                    num_workers=1,
-                    pin_memory=True
-                )
-
                 print("Preparing models...")
                 
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                # checkpoint_path = 'weights/pytorch_attention/checkpoint_2021-12-14_14-23-42.430392.pth.tar'
                 checkpoint = torch.load(checkpoint_path)
                 encoder = checkpoint['encoder']
                 decoder = checkpoint['decoder']
@@ -319,7 +321,10 @@ def main():
                 encoder.to(device)
                 decoder.to(device)
 
-                results = {'ground_truth': [], 'prediction': []}
+                if first_time:
+                    results = {'ground_truth': [], 'prediction': []}
+                else:
+                    results = {'ground_truth': results['ground_truth'], 'prediction': []}
 
                 # predict
                 print(f"Generating results with batch_size = {batch_size}")
@@ -329,30 +334,34 @@ def main():
                     results['prediction'].extend(sentences)
 
                     # decode ground truth
-                    gts = decode_sequences(tokenizer, caps)
-                    results['ground_truth'].extend(gts)
+                    if first_time:
+                        gts = decode_sequences(tokenizer, caps)
+                        results['ground_truth'].extend(gts)
 
-                # unique_name = checkpoint_path.split('\\')[-1]
-                # unique_name = f"temp_{temperature}_{str(attempt+1)}"
                 unique_name = f"RL_temp_{temperature}"
 
                 df = pd.DataFrame(results)
                 df.to_csv(unique_name + '_' + configs['prediction_file_name'])
 
-                # device = cuda.get_current_device()
-                # device.reset()
-
                 # label with visualchexbert
-                ground_truth_labeled = label(
-                    df['ground_truth'].apply(lambda x: prettify(x)).values)
-                prediction_labeled = label(
-                    df['prediction'].apply(lambda x: prettify(x)).values)
+                prediction_labeled = label(df['prediction'].apply(lambda x: prettify(x)).values)
+                if first_time:
+                    ground_truth_labeled = label(df['ground_truth'].apply(lambda x: prettify(x)).values)
+
+                # mean of each disease
+                mean_df = pd.DataFrame({
+                    'prediction': prediction_labeled.mean(),
+                    'ground_truth': ground_truth_labeled.mean(),
+                })
+                print(mean_df)
+                mean_df.to_csv(unique_name + '_' + 'mean.csv')
                 
                 # shows results in evaluation matrix
                 eval_matrix = evaluation_matrix(ground_truth_labeled, prediction_labeled)
                 print(eval_matrix)
                 eval_matrix.to_csv(unique_name + '_' + configs['eval_matrix_file_name'])
 
+                first_time = False
 
 if __name__ == '__main__':
     main()

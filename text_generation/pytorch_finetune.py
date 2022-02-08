@@ -16,13 +16,16 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 max_len = 100
-temperature = 1.25
+temperature = 1.0
 eps = np.finfo(np.float32).eps.item()
 print_freq = 20
 tb = SummaryWriter()
 lr = 1e-3
+metrics = 'recall'
 
 def finetune(encoder, decoder, train_loader, tokenizer, envs, epoch):
+    encoder.train()
+    decoder.train()
     optimizer = torch.optim.Adam(decoder.parameters(), lr=lr)
     reward_history = []
     losses = []
@@ -70,10 +73,11 @@ def finetune(encoder, decoder, train_loader, tokenizer, envs, epoch):
             losses.append(loss)
             policy_losses.append(policy_loss)
             value_losses.append(value_loss)
-            tb.add_scalar("Episode_reward", final_rewards[0], i)
-            tb.add_scalar("Loss", loss, i)
-            tb.add_scalar("Policy_loss", policy_loss, i)
-            tb.add_scalar("Value_loss", value_loss, i)
+            ith = i + len(train_loader)
+            tb.add_scalar("Episode_reward", np.mean(final_rewards), ith)
+            tb.add_scalar("Loss", loss, ith)
+            tb.add_scalar("Policy_loss", policy_loss, ith)
+            tb.add_scalar("Value_loss", value_loss, ith)
             tb.add_text("Generated_sentence", decode_sequences(tokenizer, seqs)[0], i)
 
         if ((i + 1) % print_freq) == 0:
@@ -240,13 +244,14 @@ def get_expected_returns(rewards, gamma, normalize=True):
 
 def main():
     train_batch_size = 12
-    epochs = 1
+    val_batch_size = 12
+    epochs = 5
     tokenizer = create_tokenizer()
     sparse_reward = False
     num_instances = train_batch_size
 
     # Models
-    checkpoint_path = "weights\pytorch_attention\checkpoint_2021-12-21_03-32-00.004925.pth.tar"
+    checkpoint_path = "weights\pytorch_attention\checkpoint_2022-02-08_08-33-18.193576.pth.tar"
     checkpoint = torch.load(checkpoint_path)
     encoder = checkpoint['encoder']
     decoder = checkpoint['decoder']
@@ -268,8 +273,8 @@ def main():
 
     val_loader = DataLoader(
         ChestXRayDataset('val', transform=transforms.Compose([normalize])), 
-        batch_size=32, 
-        shuffle=True, 
+        batch_size=val_batch_size, 
+        shuffle=False, 
         num_workers=1, 
         pin_memory=True)
     
@@ -278,11 +283,12 @@ def main():
     # Create env (Parallel)
     envs = []
     for _ in range(num_instances):
-        env = ChestXRayEnv(tokenizer, max_len, sparse_reward=sparse_reward)
+        env = ChestXRayEnv(tokenizer, max_len, sparse_reward=sparse_reward, metrics=metrics)
         env.reset()
         envs.append(env)
 
     for epoch in range(epochs):
+        print(f"Finetuning epoch {epoch+1}")
         finetune(encoder, decoder, train_loader, tokenizer, envs, epoch)
         recent_bleu4 = validate(val_loader, encoder, decoder, loss_function, tokenizer)
         print(f"Bleu4: {recent_bleu4}")

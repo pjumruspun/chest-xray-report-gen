@@ -30,7 +30,7 @@ class ChestXRayEnv(gym.Env):
         [/] Max sequence length is reached
     """
 
-    def __init__(self, tokenizer, max_len, sparse_reward=True):
+    def __init__(self, tokenizer, max_len, sparse_reward=True, metrics='f1'):
         self.bos = tokenizer.stoi['<startseq>']
         self.eos = tokenizer.stoi['<endseq>']
         self.fullstop = tokenizer.stoi['.']
@@ -41,6 +41,8 @@ class ChestXRayEnv(gym.Env):
         self.idx = 0
         self.last_metric = 0.0
         self.sparse_reward = sparse_reward
+        self.metrics = metrics
+        assert self.metrics in ['f1', 'recall', 'precision']
 
         # Action is choosing vocab
         self.action_space = spaces.Discrete(len(tokenizer.stoi))
@@ -130,10 +132,16 @@ class ChestXRayEnv(gym.Env):
             # Check if the generated word was a full stop or is done
             if action == self.fullstop or done:
                 precision, recall, f1 = calculate_reward(self.ground_truth, self.state, self.tokenizer)
-                # print(f"f1: {f1}, self.last_metric: {self.last_metric}")
-                reward = f1 - self.last_metric
-                # print(f"reward: {reward}")
-                self.last_metric = f1
+
+                if self.metrics == 'f1':
+                    reward = f1 - self.last_metric
+                    self.last_metric = f1
+                elif self.metrics == 'recall':
+                    reward = recall - self.last_metric
+                    self.last_metric = recall
+                elif self.metrics == 'precision':
+                    reward = precision - self.last_metric
+                    self.last_metric = precision
                 
                 # Additionally, if done, reset ground truth
                 if done:
