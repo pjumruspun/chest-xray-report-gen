@@ -287,7 +287,7 @@ def main():
         # "weights\pytorch_attention\checkpoint_2021-12-14_14-23-42.430392.pth.tar",
         # 'weights/pytorch_attention/checkpoint_2022-01-07_17-44-48.868114.pth.tar', # <- RL
         # 'weights/pytorch_attention/checkpoint_2022-01-18_19-05-33.048100.pth.tar', # <- working RL
-        # 'weights\pytorch_attention\checkpoint_2022-02-08_01-29-52.625176.pth.tar', # <- cleaned epoch 20 0.2957 macro f1
+        'weights\pytorch_attention\checkpoint_2022-02-08_01-29-52.625176.pth.tar', # <- cleaned epoch 20 0.2957 macro f1
         'weights\pytorch_attention\checkpoint_2022-02-08_10-37-10.316094.pth.tar', # <- cleaned RL epoch 3
     ]
 
@@ -309,7 +309,7 @@ def main():
 
     for checkpoint_path in checkpoint_paths:
         for temperature in temperatures:
-            for attempt in range(1):
+            for attempt in range(5):
                 print("Preparing models...")
                 
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -338,7 +338,7 @@ def main():
                         gts = decode_sequences(tokenizer, caps)
                         results['ground_truth'].extend(gts)
 
-                unique_name = f"RL_temp_{temperature}"
+                unique_name = f"{checkpoint_path}_{attempt+1}"
 
                 df = pd.DataFrame(results)
                 df.to_csv(unique_name + '_' + configs['prediction_file_name'])

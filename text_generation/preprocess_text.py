@@ -33,6 +33,7 @@ def rem_irrelevant_strings(text):
     irrelevant = [
         'as compared to the previous radiograph',
         'no previous images',
+        'dr.'
     ]
     for line in text:
         temp = line

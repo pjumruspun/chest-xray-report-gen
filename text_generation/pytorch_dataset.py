@@ -1,5 +1,4 @@
 from torch.utils.data import Dataset
-from dataset import files_exist
 from configs import configs
 import pandas as pd
 from skimage.io import imread
@@ -20,33 +19,30 @@ class ChestXRayDataset(Dataset):
         data_split: train, val, or test
         augment_func: augments the image, leave None to do nothing
         """
-        if files_exist():
-            if data_split == 'train':
-                data_path = configs['train_csv']
-            elif data_split == 'val':
-                data_path = configs['val_csv']
-            elif data_split == 'test':
-                data_path = configs['test_csv']
-            else:
-                raise AttributeError(f"Invalid data_split: {data_split}")
-
-            # Load dataframe
-            df = pd.read_csv(data_path)
-
-            # Stores captions and image paths
-            self.captions = df['report'].values
-            self.caplens = df['report'].str.split().apply(lambda x: len(x)).values
-            self.image_paths = df['img_path'].values
-            self.data_split = data_split
-            self.input_shape = configs['input_shape']
-            self.augment_func = augment_func
-            self.dataset_size = self.captions.shape[0]
-            self.tokenizer = tokenizer
-            self.pad_length = get_max_report_len()
-            self.transform = transform
-            self.cpi = 1
+        if data_split == 'train':
+            data_path = configs['train_csv']
+        elif data_split == 'val':
+            data_path = configs['val_csv']
+        elif data_split == 'test':
+            data_path = configs['test_csv']
         else:
-            raise FileNotFoundError()
+            raise AttributeError(f"Invalid data_split: {data_split}")
+
+        # Load dataframe
+        df = pd.read_csv(data_path)
+
+        # Stores captions and image paths
+        self.captions = df['report'].values
+        self.caplens = df['report'].str.split().apply(lambda x: len(x)).values
+        self.image_paths = df['img_path'].values
+        self.data_split = data_split
+        self.input_shape = configs['input_shape']
+        self.augment_func = augment_func
+        self.dataset_size = self.captions.shape[0]
+        self.tokenizer = tokenizer
+        self.pad_length = get_max_report_len()
+        self.transform = transform
+        self.cpi = 1
 
     def __getitem__(self, index):
         """
@@ -123,3 +119,4 @@ if __name__ == "__main__":
     print(allcaps)
     plt.imshow(image.numpy())
     plt.show()
+    print(f"Image size: {image.numpy().shape}")

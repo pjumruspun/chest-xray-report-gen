@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import tensorflow as tf
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
@@ -178,6 +177,25 @@ def get_train_materials(test_batch_size=None):
 
     return generators, data, tokenizer, embedding_matrix, vocab_size
 
+def split_data(frac=0.05):
+    assert configs['dataset'] == 'mimic-cxr'
+    df = pd.read_csv(configs['mimic_csv_file_path'])
+    df = df.sample(frac=frac, random_state=SEED)
+    df = df.drop(columns='Unnamed: 0')
+    print(f"Total rows: {df.shape[0]}")
+    print(f"No Finding ratio: {df['No Finding'].mean()}")
+    print(df.head())
+
+    Y = df['report'].values
+
+    train_df, val_df, test_df, _, _, _ = train_val_test_split(
+        df, Y, configs['train_ratio'], configs['val_ratio'], configs['test_ratio'])
+
+    # Write CSV
+    train_df.to_csv(configs['train_csv'], index=False)
+    val_df.to_csv(configs['val_csv'], index=False)
+    test_df.to_csv(configs['test_csv'], index=False)
+
 
 def export_data_csv() -> None:
     """
@@ -201,4 +219,8 @@ def export_data_csv() -> None:
 
 
 if __name__ == '__main__':
-    get_train_materials()
+    dataset = configs['dataset']
+    if dataset == 'iu-xray':
+        get_train_materials()
+    elif dataset == 'mimic-cxr':
+        split_data()

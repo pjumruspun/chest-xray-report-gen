@@ -10,6 +10,8 @@ __pycache__/
 
 # Text generation stuff
 text_generation/data/
+text_generation/mimic_cxr/
+text_generation/mimic_cxr/*.csv
 text_generation/weights
 text_generation/images.npy
 text_generation/train_loss
