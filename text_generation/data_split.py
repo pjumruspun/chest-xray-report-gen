@@ -5,8 +5,6 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from utils import SEED, get_max_report_len, create_embedding_matrix
 from preprocess import load_csv, load_image_mappings
-from tokenizer import cnn_rnn_tokenizer
-
 
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from configs import configs

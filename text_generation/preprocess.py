@@ -7,8 +7,6 @@ from skimage.io import imread
 from skimage.transform import resize
 from tensorflow.keras.applications.densenet import preprocess_input
 from tqdm import tqdm
-
-from chexnet import ChexNet
 from preprocess_text import remove_empty, text_preprocessing
 
 from configs import configs
@@ -196,41 +194,6 @@ def load_images(img_paths, preprocess=True) -> np.array:
         images.append(image)
 
     return np.asarray(images)
-
-
-def generate_image_features(images, batch_size=32) -> np.array:
-    """
-    Generate image features from images using pretrained ChexNet
-    """
-
-    print("Creating ChexNet model...")
-    chexnet = ChexNet(input_shape=configs['input_shape'], pooling=None)
-    image_features = []
-
-    print("Creating image generator...")
-    # batch
-    # image_generator = tf.data.Dataset.from_tensor_slices(images) # Why explode here?
-    # image_generator = image_generator.batch(batch_size)
-
-    image_generator = []
-    for i in range(0, images.shape[0], batch_size):
-        start = i
-        stop = min(images.shape[0], i + 32)
-        image_generator.append(images[start:stop])
-
-    print("Start generating features...")
-    for batch in tqdm(image_generator):
-        features_batch = chexnet(batch)
-        image_features.extend(features_batch)
-
-    return np.asarray(image_features)
-
-def create_image_mappings(img_paths, image_features) -> dict:
-
-    if len(img_paths) != image_features.shape[0]:
-        raise Exception(f"{len(img_paths)} != {len(image_features.shape[0])}")
-
-    return dict(zip(img_paths, image_features))
 
 if __name__ == "__main__":
     # TODO: Add command line options to do either

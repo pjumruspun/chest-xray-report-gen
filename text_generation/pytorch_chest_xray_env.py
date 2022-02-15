@@ -4,7 +4,6 @@ from gym.utils import seeding
 import numpy as np
 from pytorch_chexpert import calculate_reward
 from data_split import get_train_materials
-from label import prep_models
 
 class ChestXRayEnv(gym.Env):
     """

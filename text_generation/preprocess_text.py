@@ -1,5 +1,5 @@
 import re
-
+from configs import configs
 
 def lowercase(text):
     """Converts to lowercase"""
@@ -214,6 +214,29 @@ def remove_empty(inp):
     res = df[length > 1].reset_index(drop=True)
 
     return res
+
+def add_start_stop(text) -> str:
+    return configs['START_TOK'] + ' ' + text.str.strip() + ' ' + configs['STOP_TOK']
+
+
+def preprocess_text(df):
+    """
+    Preprocess 'report' column of df according to preprocess_text.py
+    """
+
+    cleaned_df = df.copy()
+    cleaned_df['report'] = text_preprocessing(df['report'])
+
+    # Remove empty
+    cleaned_df = remove_empty(cleaned_df)
+    cleaned_df['report'] = add_start_stop(cleaned_df['report'])
+
+    # No manipulation here, just see what's the min and max length
+    lengths = cleaned_df['report'].apply(lambda x: x.split()).str.len()
+    print(
+        f"Max report length = {lengths.max()}, min report length = {lengths.min()}")
+
+    return cleaned_df
 
 if __name__ == '__main__':
     t = [

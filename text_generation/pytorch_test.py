@@ -1,4 +1,3 @@
-from skimage import transform
 from sklearn.metrics import recall_score, precision_score, f1_score
 import torch
 import torch.nn as nn
@@ -9,7 +8,6 @@ from torch.utils.data.dataloader import DataLoader
 from utils import decode_sequences
 
 from tqdm import tqdm
-from label import prettify
 from pytorch_label import temperature_sampling
 
 import VisualCheXbert.visualchexbert.utils as utils
@@ -22,9 +20,6 @@ from VisualCheXbert.visualchexbert.constants import *
 
 from torch.utils.data import Dataset
 from configs import configs
-from numba import cuda 
-
-from tokenizer import decode_report
 
 from pytorch_dataset import ChestXRayDataset
 from pytorch_tokenizer import create_tokenizer
@@ -287,8 +282,10 @@ def main():
         # "weights\pytorch_attention\checkpoint_2021-12-14_14-23-42.430392.pth.tar",
         # 'weights/pytorch_attention/checkpoint_2022-01-07_17-44-48.868114.pth.tar', # <- RL
         # 'weights/pytorch_attention/checkpoint_2022-01-18_19-05-33.048100.pth.tar', # <- working RL
-        'weights\pytorch_attention\checkpoint_2022-02-08_01-29-52.625176.pth.tar', # <- cleaned epoch 20 0.2957 macro f1
-        'weights\pytorch_attention\checkpoint_2022-02-08_10-37-10.316094.pth.tar', # <- cleaned RL epoch 3
+        # 'weights\pytorch_attention\checkpoint_2022-02-07_20-50-35.370269.pth.tar', # <- cleaned epoch 10 0.2399 macro f1
+        # 'weights\pytorch_attention\checkpoint_2022-02-08_01-29-52.625176.pth.tar', # <- cleaned epoch 22 0.2731 macro f1
+        # 'weights\pytorch_attention\checkpoint_2022-02-08_10-37-10.316094.pth.tar', # <- cleaned RL epoch 3
+        'weights\pytorch_attention\checkpoint_2022-02-14_18-09-57.195877.pth.tar', # <- cleaned RL epoch 5
     ]
 
     temperatures = [1.0]
@@ -309,7 +306,7 @@ def main():
 
     for checkpoint_path in checkpoint_paths:
         for temperature in temperatures:
-            for attempt in range(5):
+            for attempt in range(3):
                 print("Preparing models...")
                 
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -344,7 +341,10 @@ def main():
                 df.to_csv(unique_name + '_' + configs['prediction_file_name'])
 
                 # label with visualchexbert
-                prediction_labeled = label(df['prediction'].apply(lambda x: prettify(x)).values)
+                print(df['prediction'].shape)
+                prettified = df['prediction'].apply(lambda x: prettify(x)).values
+                print(f"Prettified length: {len(prettified)}")
+                prediction_labeled = label(prettified)
                 if first_time:
                     ground_truth_labeled = label(df['ground_truth'].apply(lambda x: prettify(x)).values)
 

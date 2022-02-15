@@ -46,6 +46,7 @@ def finetune(encoder, decoder, train_loader, tokenizer, envs, epoch, lr):
         
         # Variables before running an opisode
         dones = [False] * batch_size
+        res = [[] for _ in range(batch_size)]
         ep_rewards = [[] for _ in range(batch_size)]
         
         seqs, _ = temperature_sampling(
@@ -54,12 +55,17 @@ def finetune(encoder, decoder, train_loader, tokenizer, envs, epoch, lr):
 
         for j, (env, seq) in enumerate(zip(envs, seqs)):
             for action in seq:
-                s, r, done, info = env.step(action)
-                dones[j] = done
-                ep_rewards[j].append(r)
+                if not dones[j]:
+                    s, r, done, info = env.step(action)
+                    dones[j] = done
+                    last_nonzero_idx = np.max(s.nonzero())
+                    idx = int(s[last_nonzero_idx])
+                    res[j].append(tokenizer.itos[idx])
+                    ep_rewards[j].append(r)
+
                 if all(dones):
                     break
-
+        
         # Append results
         final_rewards = [sum(ep_reward) for ep_reward in ep_rewards]
         loss, policy_loss, value_loss = finish_episode(i, len(train_loader), decoder, ep_rewards, optimizer)
@@ -75,9 +81,6 @@ def finetune(encoder, decoder, train_loader, tokenizer, envs, epoch, lr):
             tb.add_scalar("Policy_loss", policy_loss, ith)
             tb.add_scalar("Value_loss", value_loss, ith)
             tb.add_text("Generated_sentence", decode_sequences(tokenizer, seqs)[0], ith)
-
-        if ((i + 1) % print_freq) == 0:
-            print(f"\nloss avg: {np.mean(losses):.4f}\tlast {print_freq} loss avg: {np.mean(losses[-print_freq:])}")
 
 
 def ragged_list_to_tensor(nested_ls, default_value):
@@ -148,8 +151,8 @@ def finish_episode(i, loader_length, decoder, ep_rewards, optimizer):
         # Total batch size as divisor
         total_batch_size += batch_size
         
-    total_policy_losses = total_policy_losses / total_batch_size
-    total_value_losses = total_value_losses / total_batch_size
+    total_policy_losses = total_policy_losses
+    total_value_losses = total_value_losses
     loss = total_policy_losses + total_value_losses
     loss.backward()
 
@@ -233,9 +236,8 @@ def main():
     for epoch in range(epochs):
         print(f"Finetuning epoch {epoch+1}")
         finetune(encoder, decoder, train_loader, tokenizer, envs, epoch, args.learning_rate)
-        recent_bleu4 = validate(val_loader, encoder, decoder, loss_function, tokenizer)
-        print(f"Bleu4: {recent_bleu4}")
-        save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, recent_bleu4)
+        # recent_bleu4 = validate(val_loader, encoder, decoder, loss_function, tokenizer)
+        save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, -1)
         
 
 if __name__ == "__main__":

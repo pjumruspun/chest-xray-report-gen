@@ -19,6 +19,7 @@ configs = {
     'projection_csv': get_path(__file__, 'data/indiana_projections.csv'),
     'images_npy_file_path': get_path(__file__, 'data/images.npy'),
     'csv_file_path': get_path(__file__, 'data/all.csv'),
+    'iu_xray_csv_file_path': get_path(__file__, 'data/all.csv'),
     'mimic_csv_file_path': get_path(__file__, 'mimic_cxr_reports.csv'),
     'pickle_file_path': get_path(__file__, 'data/image_features.pickle'),
     'mimic_dir': 'mimic_cxr/',

@@ -1,7 +1,7 @@
 # import time
 import warnings
 from collections import OrderedDict
-from test import (TEMP_CSV_FILENAME, apply_logreg_mapping, load_unlabeled_data,
+from pytorch_test import (TEMP_CSV_FILENAME, apply_logreg_mapping, load_unlabeled_data,
                   write_csv_for_chexbert)
 
 import numpy as np
@@ -21,6 +21,7 @@ from pytorch_tokenizer import create_tokenizer
 from VisualCheXbert.visualchexbert.constants import *
 from VisualCheXbert.visualchexbert.models.bert_labeler import bert_labeler
 from configs import configs
+import inspect
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -32,6 +33,10 @@ checkpoint_path = f"{CHECKPOINT_FOLDER}/visualCheXbert.pth"
 bert_tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
 if torch.cuda.device_count() > 0:  # works even if only 1 GPU available
+    frame = inspect.stack()[0]
+    module = inspect.getmodule(frame[0])
+    filename = module.__file__
+    print(f"caller: {filename}")
     print("Creating Chexpert reward module...")
     print("Using", torch.cuda.device_count(), "GPUs!")
     model = nn.DataParallel(model)  # to utilize multiple GPU's
@@ -148,7 +153,6 @@ def calculate_reward(ground_truth, prediction, tokenizer):
 
 
 if __name__ == '__main__':
-    from utils import get_max_report_len
     import random
     # chexpert(np.array([7, 8, 9, 10, 4, 5, 0, 0]), tokenizer=cnn_rnn_tokenizer())
     tok = create_tokenizer()
@@ -159,7 +163,7 @@ if __name__ == '__main__':
     # print(sent2)
     sent1 = [[]]
     sent2 = [[]]
-    max_len = get_max_report_len()
+    max_len = 100
     vocab_size_fake = 500
     for i in range(max_len):
         id1 = random.randint(1, vocab_size_fake - 1)
