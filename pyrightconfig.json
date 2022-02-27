@@ -1,0 +1,9 @@
+{
+    "exclude": [
+        "text_generation/checkpoint",
+        "text_generation/mimic_cxr",
+        "text_generation/data",
+        "text_generation/runs",
+        "text_generation/weights",
+    ],
+}
