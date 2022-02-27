@@ -4,7 +4,7 @@ import os
 def get_path(f, path):
     return os.path.join(os.path.dirname(f), path).replace('\\', '/')
 
-dataset = 'iu-xray'
+dataset = 'mimic-cxr'
 
 configs = {
     'dataset': dataset,
@@ -14,6 +14,9 @@ configs = {
     'train_csv': os.path.join(os.path.dirname(__file__), 'data/train.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/train.csv'),
     'val_csv': os.path.join(os.path.dirname(__file__), 'data/val.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/val.csv'),
     'test_csv': os.path.join(os.path.dirname(__file__), 'data/test.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/test.csv'),
+    'train_label_csv': os.path.join(os.path.dirname(__file__), 'data/train_label.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/train_label.csv'),
+    'val_label_csv': os.path.join(os.path.dirname(__file__), 'data/val_label.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/val_label.csv'),
+    'test_label_csv': os.path.join(os.path.dirname(__file__), 'data/test_label.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/test_label.csv'),
     'image_path': get_path(__file__, 'data/images/images_normalized/'),
     'report_csv': get_path(__file__, 'data/indiana_reports.csv'),
     'projection_csv': get_path(__file__, 'data/indiana_projections.csv'),
