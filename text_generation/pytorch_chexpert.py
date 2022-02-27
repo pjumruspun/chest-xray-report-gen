@@ -23,6 +23,9 @@ from VisualCheXbert.visualchexbert.models.bert_labeler import bert_labeler
 from configs import configs
 import inspect
 
+from dataset import ChestXRayDataset
+from torch.utils.data import DataLoader
+
 warnings.filterwarnings("ignore", category=UserWarning)
 
 CHECKPOINT_FOLDER = 'checkpoint/'
@@ -112,7 +115,7 @@ def chexpert(sequences: np.array, tokenizer) -> pd.DataFrame:
     df_visualchexbert = apply_logreg_mapping(df, logreg_models_path)
 
     # print(df_visualchexbert)
-    return df_visualchexbert
+    return df_visualchexbert.drop(columns=['No Finding'])
 
 
 def calculate_reward(ground_truth, prediction, tokenizer):
@@ -151,8 +154,36 @@ def calculate_reward(ground_truth, prediction, tokenizer):
 
     return precision, recall, f1
 
+def apply_labels_to_dataset(data_split, batch_size=12):
+    tokenizer = create_tokenizer()
+    data_loader = DataLoader(
+        ChestXRayDataset(data_split),
+        batch_size=batch_size,
+        num_workers=1,
+        shuffle=False,
+        pin_memory=True,
+    )
 
-if __name__ == '__main__':
+    labels = []
+    for i, obj in enumerate(tqdm(data_loader)):
+        caps = obj[1]
+        label = chexpert(caps, tokenizer)
+        labels.append(label)
+
+    labels = pd.concat(labels).reset_index(drop=True)
+    return labels
+
+def apply_labels_to_csv():
+    train_labels = apply_labels_to_dataset('train')
+    train_labels.to_csv(configs['train_label_csv'], index=False)
+
+    val_labels = apply_labels_to_dataset('val')
+    val_labels.to_csv(configs['val_label_csv'], index=False)
+
+    test_labels = apply_labels_to_dataset('test')
+    test_labels.to_csv(configs['test_label_csv'], index=False)
+
+def test_calculate_reward():
     import random
     # chexpert(np.array([7, 8, 9, 10, 4, 5, 0, 0]), tokenizer=cnn_rnn_tokenizer())
     tok = create_tokenizer()
@@ -180,3 +211,24 @@ if __name__ == '__main__':
             np.array(sent1[0]),
             tokenizer=tok
         ))
+
+def test_chexpert():
+    from dataset import ChestXRayDataset
+    from torch.utils.data import DataLoader
+    from pytorch_tokenizer import create_tokenizer
+
+    tokenizer = create_tokenizer()
+    data_loader = DataLoader(
+        ChestXRayDataset('val'),
+        batch_size=2,
+        pin_memory=True,
+    ) 
+
+    _, captions, _, _ = next(iter(data_loader))
+
+    # decoded_captions = tokenizer.decode(captions)
+    df = chexpert(captions, tokenizer)
+    print(df)
+
+if __name__ == '__main__':
+    apply_labels_to_csv()
