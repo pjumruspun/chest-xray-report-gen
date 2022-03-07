@@ -1,11 +1,34 @@
 import numpy as np
 from tqdm import tqdm
+import torchvision.transforms as transforms
 from gensim.models import KeyedVectors
 from preprocess import load_csv
 from configs import configs
 import os
 
 SEED = 0
+
+CONDITIONS = ['Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
+              'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis',
+              'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture',
+              'Support Devices']
+
+normalize = transforms.Normalize(
+    mean=[0.4684, 0.4684, 0.4684], 
+    std=[0.3021, 0.3021, 0.3021]
+)
+
+train_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.RandomHorizontalFlip(p=0.5),
+    normalize
+])
+
+evaluate_transform = transforms.Compose([
+    transforms.ToTensor(),
+    normalize
+])
+
 
 
 def create_embedding_matrix(tokenizer, use_cache=True) -> np.array:

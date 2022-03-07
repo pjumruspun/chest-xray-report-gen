@@ -11,8 +11,8 @@ from utils import get_max_report_len
 
 tokenizer = create_tokenizer()
 
-class ChestXRayDataset(Dataset):
-    def __init__(self, data_split: str, augment_func=None, transform=None):
+class ChestXRayCaptionDataset(Dataset):
+    def __init__(self, data_split: str, size_256=True, augment_func=None, transform=None):
         """
         params
         
@@ -25,6 +25,8 @@ class ChestXRayDataset(Dataset):
             data_path = configs['val_csv']
         elif data_split == 'test':
             data_path = configs['test_csv']
+        elif data_split == 'all':
+            data_path = configs['mimic_csv_file_path']
         else:
             raise AttributeError(f"Invalid data_split: {data_split}")
 
@@ -32,9 +34,16 @@ class ChestXRayDataset(Dataset):
         df = pd.read_csv(data_path)
 
         # Stores captions and image paths
+        if size_256:
+            # Cached resize
+            self.image_paths = df['img_path_256'].values
+        else:
+            # Original size (512)
+            self.image_paths = df['img_path'].values
+
         self.captions = df['report'].values
         self.caplens = df['report'].str.split().apply(lambda x: len(x)).values
-        self.image_paths = df['img_path'].values
+
         self.data_split = data_split
         self.input_shape = configs['input_shape']
         self.augment_func = augment_func
@@ -42,7 +51,6 @@ class ChestXRayDataset(Dataset):
         self.tokenizer = tokenizer
         self.pad_length = get_max_report_len()
         self.transform = transform
-        self.cpi = 1
 
     def __getitem__(self, index):
         """
@@ -56,25 +64,15 @@ class ChestXRayDataset(Dataset):
         """
         # Load image
         image = self.load_image(self.image_paths[index]) # (256, 256, 3)
-        image = torch.FloatTensor(image)
-        
         if self.transform is not None:
-            image = image.permute(2, 0, 1)
             image = self.transform(image)
-            image = image.permute(1, 2, 0)
 
         # Load caption
         caption = torch.LongTensor(self.tokenizer.lookup_indices(self.captions[index].split()))
         caption = self.pad_to_length(caption, self.pad_length, self.tokenizer.stoi['<pad>'])
         caplen = torch.LongTensor([self.caplens[index]])
 
-        if self.data_split == 'train':
-            return image, caption, caplen 
-        else:
-            # For validation of testing, also return all 'captions_per_image' captions to find BLEU-4 score
-            # cpi = 1 so allcaps = caption
-            # This is redundant, should fix it soon
-            return image, caption, caplen , caption
+        return image, caption, caplen
 
     def __len__(self):
         """
@@ -91,8 +89,7 @@ class ChestXRayDataset(Dataset):
         Returns:
             image: image of size configs['input_shape']
         """
-        image = imread(image_path)
-        image = resize(image, self.input_shape)
+        image = Image.open(image_path).convert('RGB')
         if self.augment_func is not None:
             image = self.augment_func(image)
         return image
@@ -110,7 +107,7 @@ class ChestXRayDataset(Dataset):
         return F.pad(seq, pad=(0, to_right), mode='constant', value=pad_value)
 
 class MultiLabelDataset(Dataset):
-    def __init__(self, data_split: str, size_256=True, augment_func=None, transform=None, image_shape=None):
+    def __init__(self, data_split: str, size_256=True, augment_func=None, transform=None, image_shape=None, device=None):
         """
         params
         
@@ -148,6 +145,7 @@ class MultiLabelDataset(Dataset):
         self.dataset_size = len(self.image_paths)
         self.transform = transform
         self.augment_func = augment_func
+        self.device = device
     
     def __getitem__(self, index):
         """
@@ -161,13 +159,10 @@ class MultiLabelDataset(Dataset):
         """
         # Load image
         image = self.load_image(self.image_paths[index]) # (256, 256, 3)
-        # image = torch.FloatTensor(image)
-        
         if self.transform is not None:
-            # image = image.permute(2, 0, 1)
             image = self.transform(image)
-            # image = image.permute(1, 2, 0)
 
+        # Load labels
         label = self.labels[index]
         label = torch.FloatTensor(label)
         return image, label

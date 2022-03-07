@@ -9,24 +9,13 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from datetime import datetime
+from utils import train_transform, evaluate_transform
 
 device = torch.device("cuda")
 CONDITIONS = ['Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
               'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis',
               'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture',
               'Support Devices']
-
-normalize = transforms.Normalize(
-    mean=[0.4684, 0.4684, 0.4684], 
-    std=[0.3021, 0.3021, 0.3021]
-)
-
-generic_transform = transforms.Compose([
-    # transforms.Resize((256, 256)),
-    transforms.ToTensor(),
-    transforms.RandomHorizontalFlip(p=0.5),
-    normalize
-])
 
 class Chexnet(nn.Module):
     """Model modified.
@@ -146,7 +135,7 @@ else:
 loss_fn = nn.BCELoss().to(device)
 
 train_loader = DataLoader(
-    MultiLabelDataset('train', transform=generic_transform),
+    MultiLabelDataset('train', transform=train_transform),
     batch_size=8,
     shuffle=False,
     num_workers=0,
@@ -154,7 +143,7 @@ train_loader = DataLoader(
 )
 
 val_loader = DataLoader(
-    MultiLabelDataset('val', transform=generic_transform),
+    MultiLabelDataset('val', transform=evaluate_transform),
     batch_size=8,
     shuffle=False,
     num_workers=0,

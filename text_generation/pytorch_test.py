@@ -225,8 +225,10 @@ def label(reports, out_path=None):
 def evaluation_matrix(true, pred):
     t = true.copy()
     p = pred.copy()
-    t = t.drop(['Report Impression'], axis=1)
-    p = p.drop(['Report Impression'], axis=1)
+    if 'Report Impression' in t.columns:
+        t = t.drop(['Report Impression'], axis=1)
+    if 'Report Impression' in p.columns:
+        p = p.drop(['Report Impression'], axis=1)
 
     recall = ['Recall']
     for col in t.columns:

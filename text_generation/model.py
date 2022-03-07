@@ -47,7 +47,8 @@ class Chexnet(nn.Module):
         probs = torch.sigmoid(self.fc(flattened))
         return encoded_images, probs
 
-    def load_finetuned_weights():
+    @staticmethod
+    def finetuned():
+        print(f"loading weights from {FINETUNED_WEIGHT_PATH}")
         checkpoint = torch.load(FINETUNED_WEIGHT_PATH)
-        self = checkpoint['encoder']
-        self = self.cuda()
+        return checkpoint['encoder'].cuda()

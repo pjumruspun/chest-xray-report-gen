@@ -17,6 +17,7 @@ configs = {
     'train_label_csv': os.path.join(os.path.dirname(__file__), 'data/train_label.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/train_label.csv'),
     'val_label_csv': os.path.join(os.path.dirname(__file__), 'data/val_label.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/val_label.csv'),
     'test_label_csv': os.path.join(os.path.dirname(__file__), 'data/test_label.csv') if dataset == 'iu-xray' else os.path.join(os.path.dirname(__file__), 'mimic_cxr/test_label.csv'),
+    'all_label_csv': os.path.join(os.path.dirname(__file__), 'mimic_cxr/all_label.csv'),
     'image_path': get_path(__file__, 'data/images/images_normalized/'),
     'report_csv': get_path(__file__, 'data/indiana_reports.csv'),
     'projection_csv': get_path(__file__, 'data/indiana_projections.csv'),

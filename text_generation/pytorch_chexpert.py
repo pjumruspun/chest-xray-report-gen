@@ -23,7 +23,6 @@ from VisualCheXbert.visualchexbert.models.bert_labeler import bert_labeler
 from configs import configs
 import inspect
 
-from dataset import ChestXRayDataset
 from torch.utils.data import DataLoader
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -115,7 +114,7 @@ def chexpert(sequences: np.array, tokenizer) -> pd.DataFrame:
     df_visualchexbert = apply_logreg_mapping(df, logreg_models_path)
 
     # print(df_visualchexbert)
-    return df_visualchexbert.drop(columns=['No Finding'])
+    return df_visualchexbert
 
 
 def calculate_reward(ground_truth, prediction, tokenizer):
@@ -155,9 +154,11 @@ def calculate_reward(ground_truth, prediction, tokenizer):
     return precision, recall, f1
 
 def apply_labels_to_dataset(data_split, batch_size=12):
+    from dataset import ChestXRayCaptionDataset
+    import torchvision.transforms as transforms
     tokenizer = create_tokenizer()
     data_loader = DataLoader(
-        ChestXRayDataset(data_split),
+        ChestXRayCaptionDataset(data_split, transform=transforms.ToTensor()),
         batch_size=batch_size,
         num_workers=1,
         shuffle=False,
@@ -182,6 +183,10 @@ def apply_labels_to_csv():
 
     test_labels = apply_labels_to_dataset('test')
     test_labels.to_csv(configs['test_label_csv'], index=False)
+
+def apply_labels_to_mimic():
+    all_labels = apply_labels_to_dataset('all')
+    all_labels.to_csv(configs['all_label_csv'], index=False)
 
 def test_calculate_reward():
     import random
@@ -213,13 +218,13 @@ def test_calculate_reward():
         ))
 
 def test_chexpert():
-    from dataset import ChestXRayDataset
+    from dataset import ChestXRayCaptionDataset
     from torch.utils.data import DataLoader
     from pytorch_tokenizer import create_tokenizer
 
     tokenizer = create_tokenizer()
     data_loader = DataLoader(
-        ChestXRayDataset('val'),
+        ChestXRayCaptionDataset('val'),
         batch_size=2,
         pin_memory=True,
     ) 
