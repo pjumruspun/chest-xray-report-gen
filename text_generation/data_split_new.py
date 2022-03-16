@@ -36,8 +36,11 @@ def split_data_mimic_cxr(frac=0.05):
     """
 
     df = pd.read_csv(configs['mimic_csv_file_path'])
-    df = df.sample(frac=frac, random_state=SEED)
-    df.drop(columns='Unnamed: 0')
+    if frac < 1.0:
+        print(f"Sample ratio: {frac}")
+        df = df.sample(frac=frac, random_state=SEED)
+    if 'Unnamed: 0' in df.columns:
+        df.drop(columns='Unnamed: 0')
     print(f"Total rows: {df.shape[0]}")
     print(f"No Finding ratio: {df['No Finding'].mean()}")
     print(df.head())
@@ -57,7 +60,7 @@ def main():
     if dataset == 'iu-xray':
         split_data_iu_xray()
     elif dataset == 'mimic-cxr':
-        split_data_mimic_cxr()
+        split_data_mimic_cxr(frac=1.0)
 
 if __name__ == '__main__':
     main()

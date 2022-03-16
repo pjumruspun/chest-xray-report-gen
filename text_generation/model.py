@@ -2,7 +2,8 @@ import torch
 import torchvision
 from torch import nn
 
-FINETUNED_WEIGHT_PATH = 'weights/pretrained_encoder/pretrained_enc_2022-02-26_16-38-13.950274.pth.tar'
+# FINETUNED_WEIGHT_PATH = 'weights/pretrained_encoder/pretrained_enc_2022-02-26_16-38-13.950274.pth.tar'
+FINETUNED_WEIGHT_PATH = 'weights/pretrained_encoder/pretrained_enc_epoch_5_2022-03-08_15-43-47.540586.pth.tar' # Full data 14
 
 class Chexnet(nn.Module):
     """Model modified.
