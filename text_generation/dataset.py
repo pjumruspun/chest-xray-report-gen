@@ -189,7 +189,7 @@ class MultiLabelDataset(Dataset):
 
 
 def test_report_dataset():
-    val = ChestXRayDataset('val')
+    val = ChestXRayCaptionDataset('val')
     image, caption, caplen, allcaps = val[1]
     print(image.shape)
     print(caption.shape)
