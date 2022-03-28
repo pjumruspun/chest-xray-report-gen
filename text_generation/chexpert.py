@@ -1,9 +1,8 @@
 # import time
 import warnings
 from collections import OrderedDict
-from pytorch_test import (TEMP_CSV_FILENAME, apply_logreg_mapping, load_unlabeled_data,
-                  write_csv_for_chexbert)
 
+import pickle
 import numpy as np
 import pandas as pd
 import torch
@@ -17,7 +16,7 @@ from utils import decode_sequences
 
 import VisualCheXbert.visualchexbert.bert_tokenizer as bert_tokenizer
 import VisualCheXbert.visualchexbert.utils as utils
-from pytorch_tokenizer import create_tokenizer
+from tokenizer import create_tokenizer
 from VisualCheXbert.visualchexbert.constants import *
 from VisualCheXbert.visualchexbert.models.bert_labeler import bert_labeler
 from configs import configs
@@ -53,6 +52,22 @@ else:
         name = k[7:]  # remove `module.`
         new_state_dict[name] = v
     model.load_state_dict(new_state_dict)
+
+def apply_logreg_mapping(df_probs, logreg_models_path):
+    logreg_models = {}
+    visualchexbert_dict = {}
+    try:
+        with open(logreg_models_path, "rb") as handle:
+            logreg_models = pickle.load(handle)
+    except Exception as e:
+        print("Error loading path to logistic regression models. Please ensure that the pickle file is in the checkpoint folder.")
+        print(f"Exception: {e}")
+    for condition in CONDITIONS:
+        clf = logreg_models[condition]
+        y_pred = clf.predict(df_probs)
+        visualchexbert_dict[condition] = y_pred
+    df_visualchexbert = pd.DataFrame.from_dict(visualchexbert_dict)
+    return df_visualchexbert
 
 def chexpert(sequences: np.array, tokenizer) -> pd.DataFrame:
     """
@@ -175,6 +190,9 @@ def apply_labels_to_dataset(data_split, batch_size=12):
     return labels
 
 def apply_labels_to_csv():
+    """
+    Apply labels to train.csv, val.csv, and test.csv
+    """
     train_labels = apply_labels_to_dataset('train')
     train_labels.to_csv(configs['train_label_csv'], index=False)
 
@@ -220,7 +238,7 @@ def test_calculate_reward():
 def test_chexpert():
     from dataset import ChestXRayCaptionDataset
     from torch.utils.data import DataLoader
-    from pytorch_tokenizer import create_tokenizer
+    from tokenizer import create_tokenizer
 
     tokenizer = create_tokenizer()
     data_loader = DataLoader(

@@ -1,6 +1,7 @@
 import torch
 import torchvision
 from torch import nn
+from utils import CONDITIONS
 
 # FINETUNED_WEIGHT_PATH = 'weights/pretrained_encoder/pretrained_enc_2022-02-26_16-38-13.950274.pth.tar'
 FINETUNED_WEIGHT_PATH = 'weights/pretrained_encoder/pretrained_enc_epoch_5_2022-03-08_15-43-47.540586.pth.tar' # Full data 14
@@ -38,7 +39,7 @@ class Chexnet(nn.Module):
         self.true_densenet = nn.Sequential(*modules)
 
         # New classifier head
-        self.fc = nn.Linear(self.linear_input_size, 13)
+        self.fc = nn.Linear(self.linear_input_size, len(CONDITIONS))
 
         self = self.cuda()
 
@@ -50,6 +51,7 @@ class Chexnet(nn.Module):
 
     @staticmethod
     def finetuned():
+        raise Exception("Please check the weights to proper path")
         print(f"loading weights from {FINETUNED_WEIGHT_PATH}")
         checkpoint = torch.load(FINETUNED_WEIGHT_PATH)
         return checkpoint['encoder'].cuda()

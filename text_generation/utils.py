@@ -11,7 +11,7 @@ SEED = 0
 CONDITIONS = ['Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
               'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis',
               'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture',
-              'Support Devices']
+              'Support Devices', 'No Finding']
 
 normalize = transforms.Normalize(
     mean=[0.4684, 0.4684, 0.4684], 

@@ -6,7 +6,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 from configs import configs
-from pytorch_tokenizer import create_tokenizer
+from tokenizer import create_tokenizer
 from utils import get_max_report_len
 
 tokenizer = create_tokenizer()

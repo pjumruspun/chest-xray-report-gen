@@ -2,7 +2,7 @@ import gym
 from gym import spaces, logger
 from gym.utils import seeding
 import numpy as np
-from pytorch_chexpert import calculate_reward
+from chexpert import calculate_reward
 from data_split import get_train_materials
 
 class ChestXRayEnv(gym.Env):

@@ -28,6 +28,7 @@ text_generation/VisualCheXbert/
 
 # Results CSV files
 text_generation/*.csv
+text_generation/results/
 
 # Tensorboard runs
 text_generation/runs/
