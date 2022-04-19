@@ -1,10 +1,16 @@
 import os
-
+import numpy as np
 
 def get_path(f, path):
     return os.path.join(os.path.dirname(f), path).replace('\\', '/')
 
 dataset = 'mimic-cxr'
+
+# From pretrain_encoder.ipynb
+prob_thresholds = np.array([
+    0.361, 0.311, 0.337, 0.126, 0.267, 0.278, 0.232, 
+    0.263, 0.046, 0.233, 0.216, 0.312, 0.200, 0.587,
+])
 
 configs = {
     'dataset': dataset,

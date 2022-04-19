@@ -3,7 +3,7 @@ from tqdm import tqdm
 import torchvision.transforms as transforms
 from gensim.models import KeyedVectors
 from preprocess import load_csv
-from configs import configs
+from configs import configs, prob_thresholds
 import os
 
 SEED = 0
@@ -88,3 +88,32 @@ def decode_sequences(tokenizer, seqs):
     exempt_toks = [tokenizer.stoi[word] for word in exempt_words]
     sentences = [' '.join([tokenizer.itos[int(idx)] for idx in seq if idx not in exempt_toks]) for seq in seqs]
     return sentences
+
+def quantize_probs(probs):
+    """
+    Parameters:
+        probs: Probability of having x diseases, size=(n_samples * 14)
+    Returns:
+        Quantized diseases label, size=(n_samples * 14)
+    """
+    return (probs > prob_thresholds).astype(np.int8)
+
+def generate_quantized_probs():
+    """
+    Generate quantized label of disease from probability vectors
+    and save them as numpy array
+    """
+    probs_dirs = [
+        configs['mimic_dir'] + 'baseline_data/train_probs.npy',
+        configs['mimic_dir'] + 'baseline_data/val_probs.npy',
+        configs['mimic_dir'] + 'baseline_data/test_probs.npy',
+    ]
+    
+    for probs_dir in probs_dirs:
+        probs = np.load(probs_dir)
+        quantized = quantize_probs(probs.astype(np.float32))
+        new_dir = probs_dir[:-4] + '_quantized.npy'
+        np.save(new_dir, quantized)
+
+if __name__ == "__main__":
+    generate_quantized_probs()
