@@ -30,6 +30,7 @@ text_generation/VisualCheXbert/
 text_generation/*.csv
 text_generation/results/
 text_generation/results_old/
+text_generation/chexpertify/
 
 # Remote server results
 text_generation/remote_server/
