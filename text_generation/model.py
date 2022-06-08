@@ -41,13 +41,27 @@ class Chexnet(nn.Module):
         # New classifier head
         self.fc = nn.Linear(self.linear_input_size, len(CONDITIONS))
 
+        # Placeholder for gradients
+        self.gradients = None
+
         self = self.cuda()
+
+    def activations_hook(self, grad):
+        self.gradients = grad
 
     def forward(self, x):
         encoded_images = self.true_densenet(x)
+
+        h = encoded_images.register_hook(self.activations_hook)
         flattened = encoded_images.reshape(-1, self.linear_input_size)
         probs = torch.sigmoid(self.fc(flattened))
         return encoded_images, probs
+
+    def get_activations_gradient(self):
+        return self.gradients
+
+    def get_activations(self, x):
+        return self.true_densenet(x)
 
     @staticmethod
     def finetuned():
